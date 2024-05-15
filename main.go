@@ -23,8 +23,10 @@ var (
 )
 
 type Message struct {
-	Msg  string `json:"message"`
-	Urls string `json:"urls"`
+	Msg         string `json:"message"`
+	Topics      string `json:"topics"`
+	Host        string `json:"host"`
+	ThingSecret string `json:"thingSecret"`
 }
 
 func main() {
@@ -88,18 +90,21 @@ func updateURLs(message Message) {
 	defer urlsMutex.Unlock()
 
 	msg := message.Msg
-	urls := message.Urls
-	addrs := strings.Split(urls, ";")
+	host := message.Host
+	thingSecret := message.ThingSecret
+	topics := message.Topics
+	topicList := strings.Split(topics, ";")
 	if msg == "connect" {
 		// 调用函数并处理响应
-		connectWebSocket(addrs)
+		connectWebSocket(topicList, host, thingSecret)
 	}
 
 }
 
-func connectWebSocket(urls []string) {
-	if len(urls) > 0 {
-		for _, url := range urls {
+func connectWebSocket(topics []string, hostName, thingKey string) {
+	if len(topics) > 0 {
+		for _, topic := range topics {
+			url := "ws://" + hostName + ":8186" + topic + "?authorization=" + thingKey
 			go func(url string) {
 				for {
 					wsConn, _, err := websocket.DefaultDialer.Dial(url, nil)
