@@ -1,104 +1,36 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
 
-var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
-}
-
-type Connection struct {
-	ws   *websocket.Conn
-	lock sync.Mutex
-}
-
-func (c *Connection) SendMessage(message []byte) {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if err := c.ws.WriteMessage(websocket.TextMessage, message); err != nil {
-		fmt.Println("Error sending message:", err)
+var (
+	upgrader = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-}
+	clientConn *websocket.Conn
+	urlsMutex  sync.Mutex
+	msg        Message
+)
 
-func (c *Connection) Close() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	c.ws.Close()
-}
-
-func handleHTMLConnections(w http.ResponseWriter, r *http.Request) {
-	ws, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Println("Error upgrading connection:", err)
-		return
-	}
-	defer ws.Close()
-
-	// 从HTML接收外部WebSocket服务器地址
-	var externalServerAddr string
-	for {
-		mt, message, err := ws.ReadMessage()
-		fmt.Printf("message:%v\n", string(message))
-		if err != nil {
-			break
-		}
-		if mt == websocket.TextMessage {
-			externalServerAddr = string(message)
-			break
-		}
-	}
-
-	// 与外部WebSocket服务器建立连接
-	externalConn, _, err := websocket.DefaultDialer.Dial(externalServerAddr, nil)
-	if err != nil {
-		log.Printf("Error connecting to external server at %s: %v", externalServerAddr, err)
-		return
-	}
-	defer externalConn.Close()
-
-	// 消息转发循环
-	wg := sync.WaitGroup{}
-	wg.Add(2)
-
-	go func() {
-		defer wg.Done()
-		for {
-			mt, message, err := ws.ReadMessage()
-			fmt.Printf("message:%v\n", string(message))
-			if err != nil {
-				return
-			}
-			externalConn.WriteMessage(mt, message)
-		}
-	}()
-
-	go func() {
-		defer wg.Done()
-		for {
-			mt, message, err := externalConn.ReadMessage()
-			if err != nil {
-				return
-			}
-			ws.WriteMessage(mt, message)
-		}
-	}()
-
-	wg.Wait()
+type Message struct {
+	Msg  string `json:"message"`
+	Urls string `json:"urls"`
 }
 
 func main() {
-	// http.HandleFunc("/websocket", handleHTMLConnections)
-	// log.Fatal(http.ListenAndServe(":63000", nil))
-	addr := ":63000" // 监听地址和端口
+	port := ":63000" // 监听地址和端口
 	// 使用net.Listen创建TCP监听器
-	listener, err := net.Listen("tcp", addr)
+	listener, err := net.Listen("tcp", port)
 
 	if err != nil {
 		log.Fatal("Listen error:", err)
@@ -116,10 +48,90 @@ func main() {
 
 	// 使用得到的监听器来创建一个HTTP服务器
 	server := &http.Server{Addr: address.String()}
-	http.HandleFunc("/websocket", handleHTMLConnections)
+	http.HandleFunc("/websocket", websocketHandler)
 
 	// 启动HTTP服务器，这里使用Server的Serve方法而不是http.ListenAndServe
 	if err := server.Serve(tcpListener); err != nil && err != http.ErrServerClosed {
 		log.Fatal("Serve error:", err)
 	}
+
+}
+
+func websocketHandler(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		fmt.Println("Error upgrading to WebSocket:", err)
+		return
+	}
+	clientConn = conn
+
+	for {
+		_, message, err := conn.ReadMessage()
+		if err != nil {
+			fmt.Println("Error reading message from WebSocket:", err)
+			return
+		}
+		// 解析 JSON 消息
+		err = json.Unmarshal(message, &msg)
+		if err != nil {
+			fmt.Println("json unmarshal error:", err)
+			continue
+		}
+		updateURLs(msg)
+	}
+}
+
+func updateURLs(message Message) {
+	// 发起 HTTP 请求获取 URL 列表的逻辑
+	// 这里根据你的实际情况实现
+	urlsMutex.Lock()
+	defer urlsMutex.Unlock()
+
+	msg := message.Msg
+	urls := message.Urls
+	addrs := strings.Split(urls, ";")
+	if msg == "connect" {
+		// 调用函数并处理响应
+		connectWebSocket(addrs)
+	}
+
+}
+
+func connectWebSocket(urls []string) {
+	if len(urls) > 0 {
+		for _, url := range urls {
+			go func(url string) {
+				for {
+					wsConn, _, err := websocket.DefaultDialer.Dial(url, nil)
+					if err != nil {
+						fmt.Printf("Error connecting to WebSocket (%s): %v\n", url, err)
+						time.Sleep(5 * time.Second) // 重连间隔
+						continue
+					}
+
+					// 读取来自 WebSocket 连接的消息并推送到前端 JavaScript 的连接上
+					go func(wsConn *websocket.Conn) {
+						for {
+							_, message, err := wsConn.ReadMessage()
+							if err != nil {
+								fmt.Printf("Error reading message from WebSocket (%s): %v\n", url, err)
+								wsConn.Close()
+								break
+							}
+							err = clientConn.WriteMessage(websocket.TextMessage, message)
+							if err != nil {
+								fmt.Printf("Error writing message to client WebSocket: %v\n", err)
+								wsConn.Close()
+								break
+							}
+						}
+					}(wsConn)
+
+					// 保持 WebSocket 连接开启
+					// 如果连接断开，会在上面的循环中重连
+				}
+			}(url)
+		}
+	}
+
 }
