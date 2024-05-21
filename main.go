@@ -6,6 +6,8 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
@@ -20,10 +22,29 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+// messageHistory 是一个包含 sync.RWMutex 和 map 的结构体，用于存储消息主题和内容组合的键以及对应的时间戳。
+var messageHistory = struct {
+	sync.RWMutex
+	m map[string]time.Time
+}{m: make(map[string]time.Time)}
+
 // MQTT 消息处理器
+// messagePubHandler 函数检查消息是否已经在过去2秒内收到过。如果是，则不广播该消息；如果不是，则更新消息历史记录并广播消息。
+// 使用读写锁 sync.RWMutex 来确保在并发环境中安全地访问和修改 messageHistory。
 var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Message) {
-	fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), msg.Payload())
-	broadcast <- msg.Payload()
+	messageHistory.RLock()
+	timestamp, exists := messageHistory.m[msg.Topic()+string(msg.Payload())]
+	messageHistory.RUnlock()
+
+	if exists && time.Since(timestamp) < 2*time.Second {
+		fmt.Printf("Duplicate message received on topic %s: %s\n", msg.Topic(), msg.Payload())
+	} else {
+		fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), msg.Payload())
+		messageHistory.Lock()
+		messageHistory.m[msg.Topic()+string(msg.Payload())] = time.Now()
+		messageHistory.Unlock()
+		broadcast <- msg.Payload()
+	}
 }
 
 // WebSocket 消息结构
@@ -66,7 +87,7 @@ func handleMessage(ws *websocket.Conn, message []byte) {
 	if msg.Message == "connect" {
 		topics := strings.Split(msg.Topics, ";")
 		for _, topic := range topics {
-			subscribeToMQTTTopic(msg.Host, ws.RemoteAddr().String(), msg.ThingSecret, topic)
+			subscribeToMQTTTopic(msg.Host, ws.RemoteAddr().String(), msg.ThingSecret, topic+"/#")
 		}
 	}
 }
