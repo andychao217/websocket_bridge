@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -138,9 +139,13 @@ func main() {
 	// 启动一个 goroutine 来处理消息广播
 	go handleMessages()
 
+	port := os.Getenv("MG_WEBSOCKET_BRIDGE_PORT")
+	if port == "" {
+		port = "63000" // 默认端口
+	}
 	// 启动 HTTP 服务器，监听端口 63000
-	log.Println("HTTP server started on :63000")
-	err := http.ListenAndServe(":63000", nil)
+	log.Println("HTTP server started on :" + port)
+	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
