@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -12,6 +13,8 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
+
+	proto "github.com/andychao217/magistrala-websocket_bridge/proto"
 )
 
 // 全局变量来存储所有连接的 WebSocket 客户端
@@ -132,6 +135,104 @@ func subscribeToMQTTTopic(broker, clientID, thingSecret, topic string) {
 	}
 }
 
+// DeviceInfo 代表设备信息的结构体
+type DeviceInfo struct {
+	Timestamp time.Time
+	Message   string
+}
+
+// 全局变量，用于存储接收到的设备信息
+var (
+	deviceInfos []DeviceInfo
+	mutex       sync.Mutex
+)
+
+// startUDPListener 启动一个 UDP 组播侦听器
+func startUDPListener() {
+	port := os.Getenv("MG_SOCKET_BRIDGE_UDP_PORT")
+	if port == "" {
+		port = "60000" // 默认端口
+	}
+	ip := os.Getenv("MG_SOCKET_BRIDGE_UDP_IP")
+	if ip == "" {
+		ip = "232.0.0.254" // 默认ip地址
+	}
+	addr, err := net.ResolveUDPAddr("udp", ip+":"+port) // 替换为你的组播地址和端口
+	if err != nil {
+		panic(err)
+	}
+
+	conn, err := net.ListenMulticastUDP("udp", nil, addr)
+	if err != nil {
+		panic(err)
+	}
+	defer conn.Close()
+
+	buf := make([]byte, 1024)
+	for {
+		n, _, err := conn.ReadFromUDP(buf)
+		if err != nil {
+			fmt.Println("Error reading from UDP:", err)
+			continue
+		}
+
+		message := strings.TrimSpace(string(buf[:n]))
+		saveDeviceInfo(message)
+	}
+}
+
+// saveDeviceInfo 保存设备信息到全局变量
+func saveDeviceInfo(message string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	deviceInfo := DeviceInfo{
+		Timestamp: time.Now(),
+		Message:   message,
+	}
+	deviceInfos = append(deviceInfos, deviceInfo)
+}
+
+// getDevicesHandler 处理 HTTP 请求，返回接收到的设备信息
+func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	fmt.Fprintf(w, "[")
+	for i, deviceInfo := range deviceInfos {
+		if i > 0 {
+			fmt.Fprintf(w, ",")
+		}
+		fmt.Fprintf(w, `{"timestamp":"%s","message":"%s"}`, deviceInfo.Timestamp.Format(time.RFC3339), deviceInfo.Message)
+	}
+	fmt.Fprintf(w, "]")
+}
+
+// getProtoHandler 处理 HTTP 请求，返回接收到的proto信息
+func getProtoHandler(w http.ResponseWriter, r *http.Request) {
+	mutex.Lock()
+	defer mutex.Unlock()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	dateReply := &proto.DateGetReply{
+		Status: -1,
+		// 时间格式：2019-8-28 11:30:00
+		Date: "2019-8-28 11:30:00",
+		// ntp 服务器
+		NtpServer: "1.2.3.4",
+	}
+	fmt.Fprintf(w, "{")
+	fmt.Fprintf(w, `"Status":"%s",`, dateReply.Status)
+	fmt.Fprintf(w, `"Date":"%s",`, dateReply.Date)
+	fmt.Fprintf(w, `"NtpServer":"%s",`, dateReply.NtpServer)
+	fmt.Fprintf(w, "}")
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
@@ -139,10 +240,17 @@ func main() {
 	// 启动一个 goroutine 来处理消息广播
 	go handleMessages()
 
+	// 启动 UDP 组播侦听器
+	go startUDPListener()
+	http.HandleFunc("/devices", getDevicesHandler)
+
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
 		port = "63000" // 默认端口
 	}
+
+	http.HandleFunc("/protoInfo", getProtoHandler)
+
 	// 启动 HTTP 服务器，监听端口 63000
 	log.Println("HTTP server started on :" + port)
 	err := http.ListenAndServe(":"+port, nil)

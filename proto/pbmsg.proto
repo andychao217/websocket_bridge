@@ -1,0 +1,2100 @@
+syntax = "proto3";
+option optimize_for = LITE_RUNTIME;
+
+enum MsgId {
+	INVALID_ID = 0;
+
+	// 用户登陆
+	USERLOGIN = 220;
+	USERLOGIN_REPLY = 221;
+	// 握手
+	HANDSHAKE = 222;
+	// 时间设置
+	DATE_SET = 223;
+	DATE_SET_REPLY = 224;
+	// 获取网络信息
+	NET_CFG_GET = 225;
+	NET_CFG_GET_REPLY = 226;
+	// 设置网络信息
+	NET_CFG_SET = 227;
+	NET_CFG_SET_REPLY = 228;
+	// 获取设备信息
+	DEVICE_INFO_GET = 229;
+	DEVICE_INFO_GET_REPLY = 230;
+
+	// 任务开始
+	TASK_START = 231;
+	TASK_START_REPLY = 232;
+	// 任务结束
+	TASK_STOP = 233;
+	TASK_STOP_REPLY = 234;
+	// 获取任务列表
+	TASK_GET = 235;
+	TASK_GET_REPLY = 236;
+	// 添加任务
+	TASK_ADD = 237;
+	TASK_ADD_REPLY = 238;
+	// 编辑任务
+	TASK_EDIT = 239;
+	TASK_EDIT_REPLY = 240;
+	// 删除任务
+	TASK_DELETE = 241;
+	TASK_DELETE_REPLY = 242;
+	// 忽略任务执行
+	TASK_IGNORE = 243;
+	TASK_IGNORE_REPLY = 244;
+	// 获取任务忽略执行的时间点
+	TASK_IGNORE_DATE_GET = 245;
+	TASK_IGNORE_DATE_GET_REPLY = 246;
+	// 获取任务执行日志
+	GET_LOG = 247;
+	GET_LOG_REPLY = 248;
+
+	// 获取歌曲列表
+	SONG_GET = 255;
+	SONG_GET_REPLY = 256;
+	// 文件上传
+	FILE_UPLOAD = 257;
+	FILE_UPLOAD_REPLY = 258;
+	// 删除歌曲
+	SONG_DELETE = 259;
+	SONG_DELETE_REPLY = 260;
+	// 获取u盘歌曲列表
+	UDISK_SONG_GET = 261;
+	UDISK_SONG_GET_REPLY = 262;
+
+	// 获取输出通道列表
+	OUT_CHANNEL_GET = 263;
+	OUT_CHANNEL_GET_REPLY = 264;
+	// 输出通道编辑
+	OUT_CHANNEL_EDIT = 265;
+	OUT_CHANNEL_EDIT_REPLY = 266;
+	// 获取输入通道列表
+	IN_CHANNEL_GET = 267;
+	IN_CHANNEL_GET_REPLY = 268;
+	// 输入通道编辑
+	IN_CHANNEL_EDIT = 269;
+	IN_CHANNEL_EDIT_REPLY = 270;
+
+	// 调音台任务控制
+	SOUND_CONSOLE_TASK_CONTROL = 275;
+	SOUND_CONSOLE_TASK_CONTROL_REPLY = 276;
+	// 调音台任务反馈
+	SOUND_CONSOLE_TASK_FEEDBACK = 277;
+
+	// 获取电台列表
+	RADIO_FREQ_GET = 294;
+	RADIO_FREQ_GET_REPLY = 295;
+	// 添加电台
+	RADIO_FREQ_ADD = 296;
+	RADIO_FREQ_ADD_REPLY = 297;
+	// 设置电台
+	RADIO_FREQ_SET = 298;
+	RADIO_FREQ_SET_REPLY = 299;
+	// 删除电台
+	RADIO_FREQ_DELETE = 300;
+	RADIO_FREQ_DELETE_REPLY = 301;
+
+	// 设置设备信息
+	DEVICE_INFO_SET = 302;
+	DEVICE_INFO_SET_REPLY = 303;
+
+	DEVICE_RESTORE = 304;
+	DEVICE_RESTORE_REPLY = 305;
+
+	DEVICE_UPGRADE = 306;
+	DEVICE_UPGRADE_REPLY = 307;
+
+	DEVICE_POWER_GET = 308;
+	DEVICE_POWER_GET_REPLY = 309;
+
+	DEVICE_POWER_SET = 310;
+	DEVICE_POWER_SET_REPLY = 311;
+
+	TASK_SYNC = 312;
+	TASK_SYNC_REPLY = 313;
+
+	TASK_STAT_GET = 314;
+	TASK_STAT_GET_REPLY = 315;
+
+	SUBSCRIBE_PUBLISH = 316;
+	SUBSCRIBE_PUBLISH_REPLY = 317;
+
+	FORCE_SYNC = 318;
+	FORCE_SYNC_REPLY = 319;
+
+	IDENTITY_SEND = 320;
+	IDENTITY_SEND_REPLY = 321;
+
+	TASK_ADD_OUT_CHANNEL = 322;
+	TASK_ADD_OUT_CHANNEL_REPLY = 323;
+
+	TASK_DELETE_OUT_CHANNEL = 324;
+	TASK_DELETE_OUT_CHANNEL_REPLY = 325;
+
+	// 下载媒体文件
+	SONG_DOWNLOAD = 326;
+	SONG_DOWNLOAD_REPLY = 327;
+
+	SONG_DOWNLOAD_STATUS = 328;
+
+	STEREO_CFG_SET = 329;
+	STEREO_CFG_SET_REPLY = 330;
+
+	DEVICE_ALIASE_SET = 331;
+	DEVICE_ALIASE_SET_REPLY = 332;
+
+	TASK_SYNC_STATUS_GET = 333;
+	TASK_SYNC_STATUS_GET_REPLY = 334;
+
+	UPGRADE_COMPLETE = 335;
+
+	LED_CFG_SET = 336;
+	LED_CFG_SET_REPLY = 337;
+
+	SPEECH_CFG_GET = 338;
+	SPEECH_CFG_GET_REPLY = 339;
+	SPEECH_CFG_SET = 340;
+	SPEECH_CFG_SET_REPLY = 341;
+
+	MISC_CFG_GET = 342;
+	MISC_CFG_GET_REPLY = 343;
+
+	AMP_CHECK_CFG_SET = 344;
+	AMP_CHECK_CFG_SET_REPLY = 345;
+
+	BLUETOOTH_CFG_GET = 346;
+	BLUETOOTH_CFG_GET_REPLY = 347;
+	BLUETOOTH_CFG_SET = 348;
+	BLUETOOTH_CFG_SET_REPLY = 349;
+
+	BLUETOOTH_WHITELIST_GET = 350;
+	BLUETOOTH_WHITELIST_GET_REPLY = 351;
+	BLUETOOTH_WHITELIST_ADD = 352;
+	BLUETOOTH_WHITELIST_ADD_REPLY = 353;
+	BLUETOOTH_WHITELIST_DELETE = 354;
+	BLUETOOTH_WHITELIST_DELETE_REPLY = 355;
+
+	TASK_PRESET_SWITCH = 356;
+	TASK_PRESET_SWITCH_REPLY = 357;
+
+	APP_LOGIN = 358;
+
+	DEVICE_REBOOT = 359;
+	DEVICE_REBOOT_REPLY = 360;
+
+	TENANT_EXIT = 361;
+	DEVICE_LOGIN = 362;
+	DEVICE_INFO_UPDATE = 363;
+
+	KEY_PRESS = 364;
+
+	WRITE_SN = 365;
+	WRITE_SN_REPLY = 366;
+
+	LED_BOARD_CONTROL = 367;
+	LED_BOARD_CONTROL_REPLY = 368;
+
+	APP_ID_BOND = 369;
+	APP_ID_BOND_REPLY = 370;
+
+	AUDIO_MATRIX_CFG_GET = 371;
+	AUDIO_MATRIX_CFG_GET_REPLY = 372;
+	AUDIO_MATRIX_CFG_SET = 373;
+	AUDIO_MATRIX_CFG_SET_REPLY = 374;
+
+	WIRELESS_CFG_SET = 375;
+	WIRELESS_CFG_SET_REPLY = 376;
+
+	DATE_GET = 377;
+	DATE_GET_REPLY = 378;
+
+	DEVICE_ADVERTISE = 379;
+	DEVICE_ADVERTISE_REPLY = 380;
+
+	// 获取扩展板列表
+	EXTEND_BOARD_GET = 381;
+	EXTEND_BOARD_GET_REPLY = 382;
+	// 编辑扩展板
+	EXTEND_BOARD_SET = 383;
+	EXTEND_BOARD_SET_REPLY = 384;
+
+	JOIN_TENANT = 385;
+	JOIN_TENANT_REPLY = 386;
+
+	ALARM_OUT_CFG_GET = 387;
+	ALARM_OUT_CFG_GET_REPLY = 388;
+	ALARM_OUT_CFG_SET = 389;
+	ALARM_OUT_CFG_SET_REPLY = 390;
+
+	SPEAKER_VOLUME_SET = 391;
+	SPEAKER_VOLUME_SET_REPLY = 392;
+	SPEAKER_VOLUME_GET = 393;
+	SPEAKER_VOLUME_GET_REPLY = 394;
+
+	EQ_CFG_SET = 395;
+	EQ_CFG_SET_REPLY = 396;
+	U_CHANNEL_SET = 397;
+	U_CHANNEL_SET_REPLY = 398;
+
+	HOWLING_SUPPRESSION_SET = 399;
+	HOWLING_SUPPRESSION_SET_REPLY = 400;
+
+	AUDIO_MIX_SET = 401;
+	AUDIO_MIX_SET_REPLY = 402;
+
+	FIRMWARE_DOWNLOAD_PROGRESS = 403;
+
+	AUDIO_SUPPRESSION_SET = 404;
+	AUDIO_SUPPRESSION_SET_REPLY = 405;
+
+	NCS_CFG_SET = 406;
+	NCS_CFG_SET_REPLY = 407;
+
+	SPEAKER_CHANNEL_STATUS_GET = 408;
+	SPEAKER_CHANNEL_STATUS_GET_REPLY = 409;
+	SPEAKER_CHANNEL_STATUS = 410;
+
+	PA_REINIT_SET = 411;
+	PA_REINIT_SET_REPLY = 412;
+
+	LOW_SHELF_SET = 413;
+	LOW_SHELF_SET_REPLY = 414;
+
+	TRANSFER_SERVER_SET = 415;
+	TRANSFER_SERVER_SET_REPLY = 416;
+
+	SONG_DOWNLOAD_COMPLETE = 417;
+	
+	FACTORY_TEST = 500;
+	FACTORY_TEST_REPLY = 501;
+
+	IOT_MESSAGE_TEST = 502;
+	
+	DEBUG_CONNECTION_CFG_SET = 503;
+	DEBUG_CONNECTION_CFG_SET_REPLY = 504;
+}
+
+// 操作执行的状态返回
+enum Status {
+	SUCCEED = 0;
+	FAILED = -1;
+	TASK_NOT_FOUND = -2;
+	TASK_RUNNING = -3;
+	TASK_STOPPED = -4;
+	ARG_ERROR = -5;
+	FORBIDDEN = -6;
+	// 磁盘满了
+	DISK_FULL = -7;
+	SONG_EXIST = -8;
+	SYSTEM_BUSY = -9;
+	UDISK_UNMOUNT = -10;
+	TASK_EXIST = -11;
+}
+
+// 用户登陆
+message UserLogin {
+	string username = 1;
+	string password = 2;
+}
+
+// 用户登陆返回
+message UserLoginReply {
+	Status status = 1;
+	// 是否管理员
+	bool administrator = 2;
+	// 分配给此用户的输出通道
+	string out_channel = 3;
+}
+
+// 时间设置
+message DateSet {
+	string username = 1;
+	// 时间格式：2019-8-28 11:30:00
+	string date = 2;
+	// ntp 服务器
+	string ntp_server = 3;
+}
+
+message DateSetReply {
+	Status status = 1;
+}
+
+// 时间设置
+message DateGet {
+	string username = 1;
+}
+
+message DateGetReply {
+	Status status = 1;
+	// 时间格式：2019-8-28 11:30:00
+	string date = 2;
+	// ntp 服务器
+	string ntp_server = 3;
+}
+
+message NcsCfg {
+	uint32 terminal_id = 1;
+	uint32 terminal_port = 2;
+	string main_server_ip = 3;
+	uint32 main_server_port = 4;
+	string backup_server_ip = 5;
+	uint32 backup_server_port = 6;
+	uint32 delay = 7;
+}
+
+message SipCfg {
+	string username = 1;
+	string password = 2;
+	string host = 3;
+	uint32 port = 4;
+}
+
+// 网络配置
+message NetCfg {
+	// 手动配置的ip
+	string static_ip = 1;
+	// 手动配置的网关
+	string static_gateway = 2;
+	// 手动配置的子网掩码
+	string static_netmask = 3;
+	// 手动配置的主dns
+	string static_dns1 = 4;
+	// 手动配置的备用dns
+	string static_dns2 = 5;
+	// zmq通讯端口，消息推送端口为通讯端口+1
+	uint32 service_port = 6;
+	// 以太网mac地址
+	string eth_mac_addr = 7;
+	// ntp 服务器
+	string ntp_server = 8;
+	bool dhcp_enable = 9;
+	// dhcp分配的ip
+	string dhcp_ip = 10;
+	// dhcp分配的网关
+	string dhcp_gateway = 11;
+	// dhcp分配的子网掩码
+	string dhcp_netmask = 12;
+	// dhcp分配的主dns
+	string dhcp_dns1 = 13;
+	// dhcp分配的备用dns
+	string dhcp_dns2 = 14;
+	// wifi mac地址
+	string wifi_mac_addr = 15;
+	// 蓝牙mac地址
+	string bluetooth_mac_addr = 16;
+	// wifi热点使能
+	bool wifi_ap_enable = 17;
+	string wifi_ssid = 18;
+	string wifi_password = 19;
+	// 设备作为ap时的ip
+	string wifi_ap_ip = 20;
+	// 设备作为ap时的子网掩码
+	string wifi_ap_netmask = 21;
+	string wifi_ip = 22;
+	string wifi_gateway = 23;
+	string wifi_netmask = 24;
+	string wifi_dns1 = 25;
+	string wifi_dns2 = 26;
+	string service_ip = 27;
+	uint32 rtsp_port = 28;
+	//  mqtt私服地址
+	string mqtt_server = 29;
+	// oss私服地址
+	string oss_server = 30;
+	NcsCfg ncscfg = 31;
+	SipCfg sipcfg = 32;
+}
+
+// 获取设备网络配置信息
+message NetCfgGet {
+	string username = 1;
+}
+
+message NetCfgGetReply {
+	Status status = 1;
+	NetCfg cfg = 2;
+}
+
+// 设置网络配置信息
+message NetCfgSet {
+	string username = 1;
+	NetCfg cfg = 2;
+}
+
+message NetCfgSetReply {
+	Status status = 1;
+}
+
+message NcsCfgSet {
+	string username = 1;
+	NcsCfg cfg = 2;
+}
+
+message NcsCfgSetReply {
+	Status status = 1;
+}
+
+//扩展板配置
+
+message ExtendBoardPack {
+	repeated ExtendBoard extend_board = 1;
+}
+
+message ExtendBoard {
+	uint32 id = 1;
+	repeated BoardAttr board = 2;
+}
+
+message BoardAttr {
+	// 配置类型
+	BoardBtnType type = 1;
+	// 配置内容，分区id或通道标识
+	string content = 2;
+}
+
+enum BoardBtnType {
+	DEPT = 0;//分区
+	CHANNEL = 1;//通道
+}
+
+message ExtendBoardGet {
+	string username = 1;
+}
+
+message ExtendBoardGetReply {
+	Status status = 1;
+	ExtendBoardPack extend_boards = 2;
+}
+
+message ExtendBoardSet {
+	string username = 1;
+	ExtendBoardPack extend_boards = 2;
+}
+
+message ExtendBoardSetReply {
+	Status status = 1;
+}
+
+message ChannelPack {
+	repeated ChannelAttr channel = 1;
+}
+
+message SoundConsoleScenePack {
+	repeated SoundConsoleScene scene = 1;
+}
+
+message RadioFreqPack {
+	repeated RadioFreq rf = 1;
+}
+
+message SongPack {
+	repeated Song songs = 1;
+}
+
+// 本地扩声配置
+message SpeechCfg {
+	// 使能
+	bool speech_enable = 1;
+	// 本地扩声区域
+	string local_speech_area = 2;
+	// 触发阈值 (0~15)
+	uint32 trigger_threshold = 3;
+	// 本地扩声音量
+	uint32 volume = 4;
+	// 网络扩声区域
+	string network_speech_area = 5;
+}
+
+message MiscCfg {
+	// NXT2102立体声使能
+	bool stereo_enable = 1;
+	// NXT2102状态灯使能
+	bool led_enable = 2;
+	// 功放检测
+	bool amp_check_enable = 3;
+	// 计划任务预案目录
+	string task_preset_directory = 4;
+	// 无线模块使能
+	bool wireless_disable = 5;
+	// 时区设置
+	string timezone = 6;
+	// NXT3602的6组扬声器音量
+	SpeakerVolume speaker_volume = 7;
+	// NXT3602的eq配置
+	EqCfg eq_cfg = 8;
+	// NXT3602的U段通道配置，0~39，0表示不是固定通道
+	int32 u_channel = 9;
+	// 啸叫抑制使能
+	bool howling_suppression = 10;
+	// 移频百分比 0~100
+	int32 howling_freq_shift = 11;
+	// 混音
+	bool audio_mix = 12;
+	// 音频压制
+	bool audio_suppression = 13;
+	// 功放定期初始化
+	bool pa_reinit = 14;
+	LowShelfCfg low_shelf_cfg = 15;
+	TransferServer transfer_server = 16;
+}
+
+// 报警输入状态
+enum AlarmInStatus {
+	// 闭合
+	CLOSE = 0;
+	// 开路
+	OPEN = 1;
+}
+
+// 报警输入触发方式
+enum AlarmInTriggerMethod {
+	// 边沿触发
+	EDGE = 0;
+	// 电平触发
+	LEVEL = 1;
+}
+
+message AlarmIn {
+	// 设备名称
+	string device_name = 1;
+	// 报警输入编号
+	uint32 number = 2;
+	// 触发状态
+	AlarmInStatus trigger_status = 3;
+	// 触发方式
+	AlarmInTriggerMethod trigger_method = 4;
+	// 触发任务uuid
+	string task_uuid = 5;
+}
+
+message AlarmOutCfg {
+	bool enable = 1;
+	// 恢复时间：0表示持续至任务结束，大于0的数表示多少秒后恢复
+	uint32 duration = 2;
+}
+
+message AlarmOutCfgGet {
+	string username = 1;
+}
+
+message AlarmOutCfgGetReply {
+	Status status = 1;
+	AlarmOutCfg cfg = 2;
+}
+
+message AlarmOutCfgSet {
+	string username = 1;
+	AlarmOutCfg cfg = 2;
+}
+
+message AlarmOutCfgSetReply {
+	Status status = 1;
+}
+
+message AudioRoute {
+	string in_channel = 1;
+	string out_channel = 2;
+}
+
+message AudioMatrix {
+	bool enable = 1;
+	repeated AudioRoute audio_route = 2;
+}
+
+message AudioMatrixCfgGet {
+	string username = 1;
+}
+
+message AudioMatrixCfgGetReply {
+	Status status = 1;
+	AudioMatrix audio_matrix = 2;
+}
+
+message AudioMatrixCfgSet {
+	string username = 1;
+	AudioMatrix audio_matrix = 2;
+}
+
+message AudioMatrixCfgSetReply {
+	Status status = 1;
+}
+
+enum ChannelPower {
+	POWER_125W = 0;
+	POWER_250W = 1;
+	POWER_360W = 2;
+	POWER_500W = 3;
+	POWER_720W = 4;
+	POWER_1000W = 5;
+	POWER_1500W = 6;
+	POWER_UNKNOWN = 0xFF;
+}
+
+message DeviceFeatureList {
+	uint32 version = 1;
+	// 短路输入
+	bool has_alarm_in = 2;
+	bool alarm_in_enable = 3;
+	// 短路输出
+	bool has_alarm_out = 4;
+	bool alarm_out_enable = 5;
+	// 本地扩声
+	bool has_local_speech = 6;
+	bool local_speech_enable = 7;
+	// 蓝牙播放
+	bool has_bluetooth_player = 8;
+	bool bluetooth_player_enable = 9;
+	// 立体声
+	bool has_stereo = 10;
+	bool stereo_enable = 11;
+	// 状态灯
+	bool has_status_led = 12;
+	bool status_led_enable = 13;
+	// 音频矩阵
+	bool has_audio_matrix = 14;
+	bool audio_matrix_enable = 15;
+	// 功放检测
+	bool has_amp_check = 16;
+	bool amp_check_enable = 17;
+	// 收音机
+	bool has_radio = 18;
+	bool radio_enable = 19;
+	// 功率配置
+	bool has_device_power_cfg = 20;
+	bool device_power_cfg_enable = 21;
+	// 文字推送
+	bool has_text_push = 22;
+	bool text_push_enable = 23;
+	// 调音台
+	bool has_sound_console = 24;
+	bool sound_console_enable = 25;
+	// 广播按键配置
+	bool has_paging_key_cfg = 26;
+	bool paging_key_cfg_enable = 27;
+	// 是否支持mqtt
+	bool has_mqtt = 28;
+	bool mqtt_enable = 29;
+}
+
+message SpeakerVolume {
+	int32 volume1 = 1;
+	int32 volume2 = 2;
+	int32 volume3 = 3;
+	int32 volume4 = 4;
+	int32 volume5 = 5;
+	int32 volume6 = 6;
+	int32 master_volume = 7;
+	int32 linein_volume = 8;
+	int32 mic_volume = 9;
+	int32 lineout1_volume = 10;
+	int32 lineout2_volume = 11;
+}
+
+message EqCfg {
+	int32 eq_75 = 1;
+	int32 eq_125 = 2;
+	int32 eq_250 = 3;
+	int32 eq_500 = 4;
+	int32 eq_1000 = 5;
+	int32 eq_2000 = 6;
+	int32 eq_4000 = 7;
+	int32 eq_8000 = 8;
+}
+
+// 设备信息
+message DeviceInfo {
+	// 制造商
+	string manufacturer = 1;
+	// 产品名
+	string product_name = 2;
+	// 产品序列号
+	string product_serial = 3;
+	// 软件版本号
+	string sw_version = 4;
+	// 功放类型（现用于保存单通道功率）
+	uint32 pa_type = 5;
+	// 设备温度
+	uint32 temperature = 6;
+	// 总容量 (MB)
+	uint32 total_capacity = 7;
+	// 可用容量 (MB)
+	uint32 available_capacity = 8;
+	// 以太网mac地址
+	string eth_mac_addr = 9;
+	// wifi mac地址
+	string wifi_mac_addr = 10;
+	// 设备名
+	string device_name = 11;
+	// 设备别名
+	string device_aliase = 12;
+	// 设备是否上云
+	bool login_clound = 13;
+	// 网络配置信息
+	NetCfg netcfg = 14;
+	// 输入通道
+	ChannelPack in_channel = 15;
+	// 输出通道
+	ChannelPack out_channel = 16;
+	// 收音机频道
+	RadioFreqPack radio_freq = 19;
+	// 绑定标志
+	bool bonded = 20;
+	// 设备拥有者
+	string device_owner = 21;
+	// 设备功率
+	DevicePowerPack device_power = 22;
+	// 设备所属租户
+	string tenant_id = 23;
+	// 登录设备的用户名
+	string username = 24;
+	// 登录设备的密码
+	string password = 25;
+	// 杂项配置
+	MiscCfg misc_cfg = 27;
+	// 扩声配置
+	SpeechCfg speech_cfg = 28;
+	// 蓝牙配置
+	BluetoothCfg bluetooth_cfg = 29;
+	// 生产SN号
+	string sn = 30;
+	// 蓝牙白名单列表
+	BluetoothWhitelistPack bluetooth_whitelist = 31;
+	// 与app id进行绑定
+	string app_id_bond = 32;
+	// 报警输入数目
+	uint32 alarm_in_count = 33;
+	// 音频矩阵
+	AudioMatrix audio_matrix = 34;
+	// 扩展板配置
+	ExtendBoardPack extend_boards = 36;
+	// 报警输出配置
+	AlarmOutCfg alarm_out_cfg = 37;
+	// 设备功能列表
+	DeviceFeatureList feature_list = 500;
+}
+
+// 获取设备信息
+message DeviceInfoGet {
+	string username = 1;
+}
+
+message DeviceInfoGetReply {
+	Status status = 1;
+	DeviceInfo info = 2;
+}
+
+// 设置设备信息
+message DeviceInfoSet {
+	string username = 1;
+	DeviceInfo info = 2;
+}
+
+message DeviceInfoSetReply {
+	Status status = 1;
+}
+
+// 任务重复方式
+enum RepeatType {
+	// 单次
+	REPEAT_NONE = 0;
+	// 日重复
+	REPEAT_DAY = 1;
+	// 周重复
+	REPEAT_WEEK = 2;
+	// 月重复
+	REPEAT_MONTH = 3;
+	// 年重复
+	REPEAT_YEAR = 4;
+}
+
+// 音源
+enum AudioSource {
+	// 音频
+	SONG = 0;
+	// 输入通道
+	IN_CHANNEL = 1;
+	// 组合通道
+	MIX = 2;
+	// 收音机
+	RADIO = 3;
+	// 网络流
+	STREAM = 4;
+
+	INVALID_SOURCE = 255;
+}
+
+enum TaskType {
+	// 计划
+	SCHEDULE_TASK = 0;
+	// 语音实时
+	VOICE_REALTIME_TASK = 1;
+	// 语音文件实时
+	VOICE_SONG_REALTIME_TASK = 2;
+	// 音频文件实时
+	SONG_REALTIME_TASK = 3;
+	// 文本实时
+	TEXT_REALTIME_TASK = 5;
+	// 报警输入触发任务
+	ALARM_IN_TASK = 6;
+	SOUND_CONSOLE_REALTIME_RECV_TASK = 10;
+	SOUND_CONSOLE_REALTIME_SEND_TASK = 11;
+	XC9000_BROADCAST_RECV_TASK = 12;
+	XC9000_BROADCAST_SEND_TASK = 13;
+	MONITOR_TASK = 14;
+	PINK_NOISE_TASK = 15;
+}
+
+enum TEXT_DISPLAY_STYLE {
+	// 静止
+	STATIC = 0;
+	// 向左移动
+	MOVE_LEFT = 1;
+	// 向上移动
+	MOVE_UP = 2;
+}
+
+enum TEXT_DISPLAY_SPEED {
+	LOW = 0;
+	MIDDLE = 1;
+	HIGH = 2;
+}
+
+message IntelligentizeTask {
+	// 智能任务名称
+	string name = 1;
+	// 智能任务的唯一标识符
+	string uuid = 2;
+	// 智能任务下task任务uuid列表   1,2,3
+	string task_uuid = 3;
+	// 任务创建时间
+	string create_date = 4;
+	// 任务创建人
+	string create_user = 5;
+	// 任务编辑人
+	string edit_user = 6;
+	// 任务编辑时间
+	string edit_date = 7;
+	// 当前智能模块所属预案目录
+	string directory = 8;
+	// 当前智能任务类型
+	TaskType task_type = 9;
+}
+
+enum SongPlayType {
+	ORDER_PLAY = 0;
+	SHUFFLE_PLAY = 1;
+	ORDER_PLAY_ONCE = 2;
+}
+
+message Task {
+	// 任务所属用户名
+	string username = 1;
+	// 任务名
+	string name = 2;
+	// 任务的唯一标识符
+	string uuid = 3;
+	// 任务优先级 (1、2、3)
+	int32 priority = 4;
+	// 音源
+	AudioSource source = 5;
+	// 音频文件列表
+	string songs = 6;
+	// 输入通道列表 (1,2)
+	string in_channel = 7;
+	// 输出通道列表 (1,2)
+	string out_channel = 9;
+	// 任务开始时间 (2020-05-20 11:05:00)
+	string start_date = 10;
+	// 任务结束时间
+	string end_date = 11;
+	// 任务重复方式
+	RepeatType repeat = 12;
+	// 一周中的哪几天重复
+	string wday = 13;
+	// 任务是否正在运行
+	bool running = 14;
+	// 任务不执行的时间点
+	string ignore_date = 15;
+	// 任务仅允许手动执行
+	bool manual_only = 16;
+	// 网络拉流地址
+	string stream_pull_url = 17;
+	// 任务创建时间
+	string create_date = 18;
+	// 音频播放循环次数
+	uint32 cyclic_times = 19;
+	// 调音台总音量或者任务微调音量
+	int32 master_volume = 20;
+	// 任务类型
+	TaskType task_type = 21;
+	// 代理服务ip
+	string proxy_server_ip = 22;
+	// 代理服务端口
+	uint32 proxy_server_port = 23;
+	// 采样率
+	uint32 samplerate = 24;
+	// 时延，即每包数据长度
+	uint32 latency = 25;
+	// 语音音量
+	uint32 voice_volume = 26;
+	// 音频音量
+	uint32 song_volume = 27;
+	// 文本
+	string text = 28;
+	// 任务创建人
+	string create_user = 29;
+	// 任务编辑人
+	string edit_user = 30;
+	// 任务编辑时间
+	string edit_date = 31;
+	// 背景音源
+	AudioSource background = 32;
+	// 任务持续播放时长
+	uint32 duration = 33;
+	// 文字显示方式
+	TEXT_DISPLAY_STYLE text_display_style = 34;
+	// 文字显示速度
+	TEXT_DISPLAY_SPEED text_display_speed = 35;
+	// 文字显示持续时间（分钟）
+	uint32 text_display_duration = 36;
+	// 任务所属智能任务
+	string intelligentize_uuid = 37;
+	// 任务播放时间
+	uint64 play_time = 38;
+	// 报警输入配置
+	AlarmIn alarm_in = 40;
+	// 任务间隔时间
+	uint32 interval = 41;
+	// 网络推流地址
+	// udp://47.106.237.146:7105
+	string stream_push_url = 42;
+	// 分区
+	string out_area = 43;
+	// 歌曲播放方式
+	SongPlayType song_play_type = 44;
+	PaStreamType pa_stream_type = 45;
+}
+
+// 任务开始
+message TaskStart {
+	// 操作的用户名
+	string username = 1;
+	Task task = 2;
+}
+
+message TaskStartReply {
+	Status status = 1;
+	string uuid = 2;
+}
+
+// 任务结束
+message TaskStop {
+	// 操作的用户名
+	string username = 1;
+	string uuid = 2;
+	TaskType task_type = 3;
+}
+
+message TaskStopReply {
+	Status status = 1;
+	string uuid = 2;
+}
+
+// 获取任务列表
+message TaskGet {
+	string username = 1;
+}
+
+message TaskGetReply {
+	repeated Task task = 1;
+}
+
+// 添加任务
+message TaskAdd {
+	// 操作的用户名
+	string username = 1;
+	Task task = 2;
+}
+
+message TaskAddReply {
+	Status status = 1;
+	// 任务成功添加后返回任务的uuid
+	string uuid = 2;
+}
+
+// 编辑任务
+message TaskEdit {
+	// 操作的用户名
+	string username = 1;
+	Task task = 2;
+}
+
+message TaskEditReply {
+	Status status = 1;
+}
+
+// 任务删除
+message TaskDelete {
+	// 操作的用户名
+	string username = 1;
+	string uuid = 2;
+}
+
+message TaskDeleteReply {
+	Status status = 1;
+}
+
+// 任务忽略执行
+message TaskIgnore {
+	string username = 1;
+	// 任务uuid
+	string uuid = 2;
+	// 排除执行的时间点
+	string date = 3;
+	// 忽略或者解除忽略执行
+	bool ignore = 4;
+}
+
+message TaskIgnoreReply {
+	Status status = 1;
+}
+
+// 获取任务的忽略执行时间点
+message TaskIgnoreDateGet {
+	string username = 1;
+	// 任务uuid
+	string uuid = 2;
+}
+
+message TaskIgnoreDateGetReply {
+	Status status = 1;
+	// 忽略执行的时间点（2019-09-08）
+	string date = 2;
+}
+
+// 日志类型
+enum LogType {
+	// 所有
+	ALL = 0;
+	// 任务
+	TASK = 1;
+	// 系统
+	SYSTEM = 2;
+	// 错误
+	ERROR = 3;
+}
+
+// 获取任务执行日志
+message GetLog {
+	string username = 1;
+	LogType type = 2;
+	// 任务的uuid
+	string task_uuid = 3;
+	// 请求日志条数
+	uint32 count = 4;
+	// 日志起始位置
+	uint32 start = 5;
+}
+
+message Log {
+	// 日志内容
+	string message = 1;
+}
+
+message GetLogReply {
+	Status status = 1;
+	repeated Log log = 2;
+	LogType type = 3;
+	// 日志总条数
+	uint32 total = 4;
+	// 当前返回的日志条数
+	uint32 count = 5;
+	// 当前返回的日志起始位置
+	uint32 start = 6;
+}
+
+// 获取歌曲列表
+message SongGet {
+	string username = 1;
+}
+
+message Song {
+	// 歌曲名
+	string song = 1;
+	// 路径
+	string path = 2;
+	// 文件的播放时长(MS)
+	uint32 duration = 3;
+	// 文件长度
+	uint64 length = 4;
+}
+
+message SongGetReply {
+	Status status = 1;
+	SongPack songs = 2;
+}
+
+enum FileType {
+	FILE_SONG = 0;
+	FILE_FIRMWARE = 1;
+}
+
+// 文件上传
+message FileUpload {
+	// 操作的用户名
+	string username = 1;
+	// 文件名
+	string filename = 2;
+	// 文件数据开始传送
+	bool start = 3;
+	// 文件数据结束传送
+	bool end = 4;
+	// 文件数据
+	bytes data = 5;
+	// 是否u盘文件，如果是u盘文件，filename需要为全路径，start、end、data不需要赋值。
+	bool udisk = 6;
+	FileType filetype = 7;
+}
+
+message FileUploadReply {
+	Status status = 1;
+}
+
+// 删除歌曲
+message SongDelete {
+	string username = 1;
+	// 歌曲路径
+	string path = 2;
+}
+
+message SongDeleteReply {
+	Status status = 1;
+}
+
+// 获取u盘歌曲列表
+message UdiskSongGet {
+	string username = 1;
+}
+
+message UdiskSongGetReply {
+	Status status = 1;
+	repeated Song songs = 2;
+}
+
+// 广播流类型
+enum PaStreamType {
+	// 本地，低码率，低带宽
+	LOCAL_LOW = 0;
+	// 本地，中码率，中带宽
+	LOCAL_MIDDLE = 1;
+	// 本地，高码率，高带宽
+	LOCAL_HIGH = 2;
+	// 互联网
+	INTERNET = 3;
+}
+
+// 广播提示音
+message PaNotificationTone {
+	// 广播提示音使能
+	bool enable = 1;
+	// 广播开始提示音
+	string start_tone = 2;
+	// 广播结束提示音
+	string end_tone = 3;
+	// 广播提示音音量
+	uint32 tone_volume = 4;
+}
+
+// 通道属性
+message ChannelAttr {
+	// 通道别名 - 共有属性
+	string aliase = 1;
+	// 呈现给用户的通道id号（1、2、3、4) - 共有属性
+	uint32 id = 2;
+	// 通道的音量等级（0~15) - 共有属性
+	uint32 volume = 3;
+	// 通道的真实id，对应硬件上的id - 共有属性
+	uint32 realid = 4;
+	// 是否有负载 - 输出通道属性
+	bool load = 6;
+	// 通道是否损坏 - 输出通道属性
+	bool broken = 7;
+	// 通道是否切换到备用通道 - 输出通道属性
+	bool backup = 8;
+	// 通道当前功率 - 输出通道属性
+	float power = 9;
+	// 是否分配了功率（NXT2204第四通道） - 输出通道属性
+	bool with_power = 10;
+	// rtsp端口 - 输入通道属性
+	uint32 rtsp_port = 11;
+	// rtsp通道号 - 输入通道属性
+	uint32 rtsp_ch = 12;
+	// 忽略，不显示出来 - 共有属性
+	bool ignore = 13;
+	// 是否静音 - 调音台通道属性
+	bool mute = 14;
+	// 广播提示音 - 调音台通道属性
+	PaNotificationTone pa_notification_tone = 15;
+	// 广播流类型 - 调音台通道属性
+	PaStreamType pa_stream_type = 16;
+}
+
+// 获取输出通道列表
+message OutChannelGet {
+	string username = 1;
+}
+
+message OutChannelGetReply {
+	repeated ChannelAttr channel = 1;
+}
+
+// 输出通道编辑
+message OutChannelEdit {
+	string username = 1;
+	ChannelAttr attr = 2;
+}
+
+message OutChannelEditReply {
+	Status status = 1;
+}
+
+// 获取输入通道列表
+message InChannelGet {
+	string username = 1;
+}
+
+message InChannelGetReply {
+	repeated ChannelAttr channel = 1;
+}
+
+// 输入通道编辑
+message InChannelEdit {
+	string username = 1;
+	ChannelAttr attr = 2;
+}
+
+message InChannelEditReply {
+	Status status = 1;
+}
+
+enum VolumeType {
+	IN_1_VOLUME = 0;
+	IN_2_VOLUME = 1;
+	IN_3_VOLUME = 2;
+	IN_4_VOLUME = 3;
+	SONG_VOLUME = 4;
+	VOICE_VOLUME = 5;
+	// 话筒杆音量
+	MICROPHONE_VOLUME = 6;
+	// 总音量
+	MASTER_VOLUME = 7;
+	IN_5_VOLUME = 8;
+	IN_6_VOLUME = 9;
+}
+
+// 调音台任务控制命令
+enum SoundConsoleTaskControlCommand {
+	INVALID_COMMAND = 0;
+	// 歌曲切换
+	SONG_SWITCH = 1;
+	// 歌曲暂停
+	SONG_PAUSE = 2;
+	// 歌曲播放
+	SONG_PLAY = 3;
+	// 下一首
+	SONG_NEXT = 4;
+	// 上一首
+	SONG_PREV = 5;
+	// 定点播放
+	SONG_POSITION = 6;
+	// 音量控制
+	VOLUME_CONTROL = 7;
+	// 握手
+	KEEPALIVE = 8;
+}
+
+// 调音台任务控制
+message SoundConsoleTaskControl {
+	string username = 1;
+	string uuid = 2;
+	SoundConsoleTaskControlCommand command = 3;
+	// 歌曲名
+	string song = 4;
+	// 拖动播放位置
+	uint32 position = 5;
+	VolumeType volume_type = 6;
+	uint32 volume = 7;
+}
+
+// 调音台任务控制返回
+message SoundConsoleTaskControlReply {
+	Status status = 1;
+}
+
+message SoundConsoleTaskFeedback {
+	// 调音台任务uuid
+	string uuid = 1;
+	// 输入1通道db值
+	int32 in_1_db = 2;
+	// 输入2通道db值
+	int32 in_2_db = 3;
+	// 输入3通道db值
+	int32 in_3_db = 4;
+	// 输入4通道db值
+	int32 in_4_db = 5;
+	// 歌曲db值
+	int32 song_db = 6;
+	// app端mic db值
+	int32 voice_db = 7;
+	// app端背景音db值
+	int32 background_db = 8;
+	// 调音台当前播放的歌曲
+	string song = 9;
+	// 歌曲的播放总时长
+	uint32 duration = 10;
+	// 歌曲已经播放的时长
+	uint32 elapsed = 11;
+}
+
+// 调音台音量
+message SoundConsoleVolume {
+	// 输入1音量
+	uint32 in_1_volume = 1;
+	// 输入2音量
+	uint32 in_2_volume = 2;
+	// 输入3音量
+	uint32 in_3_volume = 3;
+	// 输入4音量
+	uint32 in_4_volume = 4;
+	// app的mic输入音量
+	uint32 voice_volume = 5;
+	// app的背景音乐音量
+	uint32 background_volume = 6;
+	// 歌曲音量
+	uint32 song_volume = 7;
+	// 2001 mic输入音量
+	uint32 microphone_volume = 8;
+	// 总音量
+	uint32 master_volume = 9;
+
+}
+
+message SoundConsoleScene {
+	// 场景唯一识别号
+	string uuid = 1;
+	// 场景所属用户
+	string username = 2;
+	// 场景名
+	string name = 3;
+	// 调音台音量
+	SoundConsoleVolume volume = 4;
+	// 选择的输入通道
+	string in_channel = 5;
+	// 选择的输出通道
+	string out_channel = 6;
+	// 选择的歌曲列表
+	string songs = 7;
+	// 歌曲通道是否开启
+	bool song_enable = 8;
+	// app mic通道是否开启
+	bool voice_enable = 9;
+	// app背景音乐是否开启
+	bool background_enable = 10;
+	// 是否当前场景
+	bool current = 11;
+	// 调音台输入设备名称
+	string input_devicName = 12;
+	// 2001 mic通道是否开启
+	bool microphone_enable = 13;
+}
+
+// 电台
+message RadioFreq {
+	// 电台频率（比如10610）
+	uint32 freq = 1;
+	// 电台名字
+	string name = 2;
+	// 当前是否使用
+	bool used = 3;
+}
+
+// 获取电台列表
+message RadioFreqGet {
+	// 操作的用户名
+	string username = 1;
+}
+
+message RadioFreqGetReply {
+	Status status = 1;
+	repeated RadioFreq rf = 2;
+}
+
+// 添加电台
+message RadioFreqAdd {
+	// 操作的用户名
+	string username = 1;
+	RadioFreq rf = 2;
+}
+
+message RadioFreqAddReply {
+	Status status = 1;
+}
+
+// 设置电台
+message RadioFreqSet {
+	// 操作的用户名
+	string username = 1;
+	RadioFreq rf = 2;
+}
+
+message RadioFreqSetReply {
+	Status status = 1;
+}
+
+// 删除电台
+message RadioFreqDelete {
+	// 操作的用户名
+	string username = 1;
+	RadioFreq rf = 2;
+}
+
+message RadioFreqDeleteReply {
+	Status status = 1;
+}
+
+message DeviceRestore {
+	string username = 1;
+}
+
+message DeviceRestoreReply {
+	Status status = 1;
+}
+
+// 升级
+message DeviceUpgrade {
+	// 固件url
+	string firmware_url = 1;
+}
+
+message DeviceUpgradeReply {
+	Status status = 1;
+}
+
+enum DevicePower {
+	W_0 = 0;
+	W_EIGHTH = 1;
+	W_QUARTERN = 2;
+	W_HALF = 3;
+	W_1 = 4;
+}
+
+message DevicePowerSet {
+	string username = 1;
+	DevicePower out_1_power = 2;
+	DevicePower out_2_power = 3;
+	DevicePower out_3_power = 4;
+	DevicePower out_4_power = 5;
+}
+
+message DevicePowerSetReply {
+	Status status = 1;
+}
+
+message DevicePowerGet {
+	string username = 1;
+}
+
+message DevicePowerGetReply {
+	Status status = 1;
+	uint32 total_power = 2;
+	DevicePower out_1_power = 3;
+	DevicePower out_2_power = 4;
+	DevicePower out_3_power = 5;
+	DevicePower out_4_power = 6;
+}
+
+message DevicePowerPack {
+	uint32 total_power = 1;
+	DevicePower out_1_power = 2;
+	DevicePower out_2_power = 3;
+	DevicePower out_3_power = 4;
+	DevicePower out_4_power = 5;
+}
+
+enum TaskSyncType {
+	ADD = 0;
+	DELETE = 1;
+	EDIT = 2;
+}
+
+message TaskSync {
+	string username = 1;
+	TaskSyncType type = 2;
+	string task_uuid = 3;
+}
+
+message TaskSyncReply {
+	Status status = 1;
+}
+
+message TaskSyncStatusGet {
+	string username = 1;
+	string task_uuid = 2;
+}
+
+enum TaskSyncStatus {
+	// 同步完成
+	SYNC_DONE = 0;
+	// 正在同步
+	SYNC_DOING = 1;
+	// 同步失败
+	SYNC_FAILED = 2;
+}
+
+message TaskSyncStatusGetReply {
+	TaskSyncStatus status = 1;
+	string comment = 2;
+}
+
+// 用于上云的时候APP请求设备任务状态
+message TaskStatGet {
+	string username = 1;
+}
+
+message TaskStatGetReply {
+	Status status = 1;
+}
+
+message SubscribePublish {
+	string username = 1;
+	string app_id = 2;
+	bool subscribe = 3;
+}
+
+message SubscribePublishReply {
+	Status status = 1;
+}
+
+message Identity {
+	string account = 1;
+	string tenant_id = 2;
+}
+
+message TaskAddOutChannel {
+	string username = 1;
+	string task_uuid = 2;
+	string out_channel = 3; 
+}
+
+message TaskAddOutChannelReply {
+	Status status = 1;
+}
+
+message TaskDeleteOutChannel {
+	string username = 1;
+	string task_uuid = 2;
+	string out_channel = 3;
+}
+
+message TaskDeleteOutChannelReply {
+	Status status = 1;
+}
+
+message SongDownload {
+	string username = 1;
+	string songs = 2;
+	string uuid = 3;
+}
+
+message SongDownloadReply {
+	Status status = 1;
+}
+
+message SongDownloadStatus {
+	Status status = 1;
+	string uuid = 2;
+}
+
+message SongDownloadComplete {
+	string song = 1;
+}
+
+message StereoCfgSet {
+	string username = 1;
+	bool stereo_enable = 2;
+}
+
+message StereoCfgSetReply {
+	Status status = 1;
+}
+
+message LedCfgSet {
+	string username = 1;
+	bool led_enable = 2;
+}
+
+message LedCfgSetReply {
+	Status status = 1;
+}
+
+message WirelessCfgSet {
+	string username = 1;
+	bool wireless_disable = 2;
+}
+
+message WirelessCfgSetReply {
+	Status status = 1;
+}
+
+message AmpCheckCfgSet {
+	string username = 1;
+	bool amp_check_enable = 2;
+}
+
+message AmpCheckCfgSetReply {
+	Status status = 1;
+}
+
+message MiscCfgGet {
+	string username = 1;
+}
+
+message MiscCfgGetReply {
+	Status status = 1;
+	MiscCfg misc_cfg = 2;
+}
+
+message SpeechCfgGet {
+	string username = 1;
+}
+
+message SpeechCfgGetReply {
+	Status status = 1;
+	SpeechCfg speech_cfg = 2;
+}
+
+message SpeechCfgSet {
+	string username = 1;
+	SpeechCfg speech_cfg = 2;
+}
+
+message SpeechCfgSetReply {
+	Status status = 1;
+}
+
+message DeviceAliaseSet {
+	string username = 1;
+	string device_aliase = 2;
+}
+
+message DeviceAliaseSetReply {
+	Status status = 1;
+}
+
+message BluetoothWhitelistPack {
+	repeated BluetoothWhitelist whitelist = 1;
+}
+
+// 蓝牙连接白名单
+message BluetoothWhitelist {
+	// 蓝牙名
+	string bluetooth_name = 1;
+	// 蓝牙地址
+	string bluetooth_addr = 2;
+}
+
+message BluetoothWhitelistGet {
+	string username = 1;
+}
+
+message BluetoothWhitelistGetReply {
+	Status status = 1;
+	repeated BluetoothWhitelist whitelist = 2;
+}
+
+message BluetoothWhitelistDelete {
+	string username = 1;
+	BluetoothWhitelist whitelist = 2;
+}
+
+message BluetoothWhitelistDeleteReply {
+	Status status = 1;
+}
+
+message BluetoothWhitelistAdd {
+	string username = 1;
+	BluetoothWhitelist whitelist = 2;
+}
+
+message BluetoothWhitelistAddReply {
+	Status status = 1;
+}
+
+// 蓝牙配置
+message BluetoothCfg {
+	// 蓝牙播放器使能
+	bool bluetooth_player_enable = 1;
+	// 白名单使能
+	bool whitelist_enable = 2;
+	// 播放区域
+	string play_area = 3;
+	// 连接密码 默认628592
+	string password = 4;
+	// 蓝牙音量
+	string bluetooth_volume = 5;
+	// 蓝牙延迟
+	uint32 bluetooth_delay = 6;
+}
+
+message BluetoothCfgSet {
+	string username = 1;
+	BluetoothCfg bluetooth_cfg = 2;
+}
+
+message BluetoothCfgSetReply {
+	Status status = 1;
+}
+
+message BluetoothCfgGet {
+	string username = 1;
+}
+
+message BluetoothCfgGetReply {
+	Status status = 1;
+	BluetoothCfg bluetooth_cfg = 2;
+}
+
+message PresetAttr {
+	//预案名称
+	string name = 1;
+	//预案目录
+	string directory = 2;
+	//是否当前预案
+	bool current = 3;
+}
+
+message PresetPack {
+	repeated PresetAttr preset = 1;
+}
+
+message TransferServer {
+	string device_name = 1;
+	string service_ip = 2;
+}
+
+message TenantInfo {
+	PresetPack presetpack = 1;
+}
+
+message ConsoleAttr {
+	// 场景uuid
+	string uuid = 1;
+	// 是否当前场景
+	bool current = 2;
+}
+
+message ConsolePack {
+	repeated ConsoleAttr console = 1;
+}
+
+message ConsoleInfo {
+	ConsolePack consolepack = 1;
+}
+
+// 预案切换
+message TaskPresetSwitch {
+	string username = 1;
+	// 预案目录
+	string preset_directory = 2;
+	// 预案名称
+	string preset_name = 3;
+}
+
+message TaskPresetSwitchReply {
+	Status status = 1;
+}
+
+message TransferServerSet {
+	TransferServer transfer_server = 1;
+}
+
+message TransferServerSetReply {
+	Status status = 1;
+}
+
+message AppLogin {
+	string AppId = 1;
+	bool login = 2;
+	string account = 3;
+}
+
+message DeviceLogin {
+	// 设备名称
+	string device_name = 1;
+	// 1:上线/0:下线
+	bool login = 2;
+}
+
+message DeviceInfoUpdate {
+	string device_name = 1;
+	DeviceInfo info = 2;
+}
+
+message DeviceReboot {
+	string username = 1;
+}
+
+message DeviceRebootReply {
+	Status status = 1;
+}
+
+enum Key {
+	KEY_PAGING = 0;
+	KEY_VOLUME_DEC = 1;
+	KEY_MUTE = 2;
+	KEY_VOLUME_INC = 3;
+	KEY_RESTORE_FACTORY = 4;
+}
+
+message KeyPress {
+	Key id = 1;
+	bool pressed = 2;
+}
+
+message WriteSn {
+	string sn = 1;
+}
+
+message WriteSnReply {
+	Status status = 1;
+}
+
+enum LedBoardControlId {
+	UPGRADE = 0;
+	DISPLAY_VERSION = 1;
+}
+
+message LedBoardControl {
+	string username = 1;
+	LedBoardControlId id = 2;
+}
+
+message LedBoardControlReply {
+	Status status = 1;
+}
+
+message AppIdBond {
+	string username = 1;
+	bool bond = 2;
+	string app_id = 3;
+}
+
+message AppIdBondReply {
+	Status status = 1;
+}
+
+message DeviceTimeGetReply {
+	uint64 time = 1;
+}
+
+message JoinTenant {
+	string username = 1;
+	string tenant_id = 2;
+}
+
+message JoinTenantReply {
+	Status status = 1;
+}
+
+message DebugConnectionCfgSet {
+	string username = 1;
+	bool enable = 2;
+}
+
+message DebugConnectionCfgSetReply {
+	Status status = 1;
+}
+
+message SpeakerVolumeSet {
+	SpeakerVolume volume = 1;
+}
+
+message SpeakerVolumeSetReply {
+	Status status = 1;
+}
+
+message SpeakerVolumeGetReply {
+	SpeakerVolume volume = 1;
+}
+
+message EqCfgSet {
+	EqCfg eq_cfg = 1;
+}
+
+message EqCfgSetReply {
+	Status status = 1;
+}
+
+message UChannelSet {
+	int32 u_channel = 1;
+}
+
+message UChannelSetReply {
+	Status status = 1;
+}
+
+message HowlingSuppressionSet {
+	bool enable = 1;
+	// 移频百分比 0~100
+	int32 freq_shift = 2;
+};
+
+message HowlingSuppressionSetReply {
+	Status status = 1;
+};
+
+message AudioMixSet {
+	bool enable = 1;
+};
+
+message AudioMixSetReply {
+	Status status = 1;
+};
+
+message AudioSuppressionSet {
+	bool enable = 1;
+};
+
+message AudioSuppressionSetReply {
+	Status status = 1;
+};
+
+message PaReinitSet {
+	bool enable = 1;
+};
+
+message PaReinitSetReply {
+	Status status = 1;
+};
+
+message LowShelfCfg {
+	// 频点
+	int32 fc = 1;
+	// 增益
+	int32 gain = 2;
+}
+
+message LowShelfSet {
+	LowShelfCfg cfg = 1;	
+};
+
+message LowShelfSetReply {
+	Status status = 1;
+};
+
+message FirmwareDownloadProgress {
+	int32 progress = 1;
+};
+
+message SpeakerChannelStatusGet {
+	string username = 1;
+	bool start = 2;
+};
+
+message SpeakerChannelStatusGetReply {
+	Status status = 1;
+};
+
+message SpeakerChannelStatus {
+	uint32 id = 1;
+	bool status = 2;
+}
+
+message DeviceAdvertiseData {
+	// 设备名
+	string device_name = 1;
+	// 设备别名
+	string device_aliase = 2;
+	// 产品名
+	string product_name = 3;
+	// 网络配置信息
+	NetCfg netcfg = 4;
+	// 设备所属租户
+	string tenant_id = 5;
+}
+
+enum FactoryTestId {
+	LAN_TEST = 0;
+	CHANNEL_1_TEST = 1;
+	CHANNEL_2_TEST = 2;
+	CHANNEL_3_TEST = 3;
+	CHANNEL_4_TEST = 4;
+	CHANNEL_MIC_TEST = 5;
+	ALARM_1_TEST = 6;
+	ALARM_2_TEST = 7;
+	ALARM_3_TEST = 8;
+	ALARM_4_TEST = 9;
+	RADIO_TEST = 10;
+	UDISK_TEST = 11;
+	RTC_TEST = 12;
+	BACKUP_CHANNEL_1_TEST = 13;
+	BACKUP_CHANNEL_2_TEST = 14;
+	BACKUP_CHANNEL_3_TEST = 15;
+	BACKUP_CHANNEL_4_TEST = 16;
+	SWITCH_CHIP_TEST = 17;
+	PREPARE_TEST = 18;
+	LED_RED_TEST = 19;
+	LED_GREEN_TEST = 20;
+	LED_BLUE_TEST = 21;
+	LINEIN_TEST = 22;
+	ENCRYPT_CHIP_TEST = 23;
+	UP_ETH_LINKED_TEST = 24;
+	DOWN_ETH_LINKED_TEST = 25;
+	IN_CHANNEL_1_TEST = 26;
+	IN_CHANNEL_2_TEST = 27;
+	IN_CHANNEL_3_TEST = 28;
+	IN_CHANNEL_4_TEST = 29;
+	IN_ALARM_1_TEST = 30;
+	IN_ALARM_2_TEST = 31;
+	IN_ALARM_3_TEST = 32;
+	IN_ALARM_4_TEST = 33;
+	FAN_TEST = 34;
+	OUT_POWER_TEST = 35;
+	LED_BOARD_LIGHT_TEST = 36;
+	LED_BOARD_DISPLAY_TEXT_TEST = 37;
+	SPEAKER_TEST = 38;
+	MICROPHONE_LED_TEST = 39;
+}
+
+message FactoryTest {
+	FactoryTestId id = 1;
+	bool start = 2;
+	string text = 3;
+	// 文字显示方式
+	TEXT_DISPLAY_STYLE text_display_style = 4;
+	// 文字显示速度
+	TEXT_DISPLAY_SPEED text_display_speed = 5;
+	// 文字显示持续时间（分钟）
+	uint32 text_display_duration = 6;
+	bool backup_channel = 7;
+}
+
+message FactoryTestReply {
+	Status status = 1;
+}
+
+message PbMsg {
+	// 消息字
+	MsgId id = 1;
+	// 消息内容
+	bytes data = 2;
+	// 消息来源
+	string source = 3;
+	// 消息目标
+	string target = 4;
+	// 消息是否转发
+	bool transfer = 5;
+	// 转发目标
+	string transfer_target = 6;
+}

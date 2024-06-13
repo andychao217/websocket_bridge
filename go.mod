@@ -1,4 +1,4 @@
-module test
+module github.com/andychao217/magistrala-websocket_bridge
 
 go 1.22.1
 
@@ -10,4 +10,5 @@ require (
 require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sync v0.1.0 // indirect
+	google.golang.org/protobuf v1.28.0 // indirect
 )
