@@ -4,7 +4,7 @@
 MG_DOCKER_IMAGE_ALIYUN_PREFIX ?= registry.cn-hangzhou.aliyuncs.com
 MG_DOCKER_IMAGE_USERNAME_PREFIX ?= andychao217
 MG_DOCKER_IMAGE_NAME_PREFIX ?= magistrala
-SVC = websocket_bridge
+SVC = socket_bridge
 BUILD_DIR = build
 CGO_ENABLED ?= 0
 GOOS ?= linux
@@ -24,9 +24,9 @@ define make_docker
 		-f docker/Dockerfile .
 endef
 
-all: websocket_bridge
+all: socket_bridge
 
-.PHONY: websocket_bridge docker docker_dev run_docker run
+.PHONY: socket_bridge docker docker_dev run_docker run
 
 install:
 	cp ${BUILD_DIR}/$(SVC) $(GOBIN)/magistrala-${SVC}

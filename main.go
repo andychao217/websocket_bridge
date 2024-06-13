@@ -139,7 +139,7 @@ func main() {
 	// 启动一个 goroutine 来处理消息广播
 	go handleMessages()
 
-	port := os.Getenv("MG_WEBSOCKET_BRIDGE_PORT")
+	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
 		port = "63000" // 默认端口
 	}
