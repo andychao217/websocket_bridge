@@ -15,6 +15,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	proto "github.com/andychao217/magistrala-websocket_bridge/proto"
+	gProto "google.golang.org/protobuf/proto"
 )
 
 // 全局变量来存储所有连接的 WebSocket 客户端
@@ -135,16 +136,17 @@ func subscribeToMQTTTopic(broker, clientID, thingSecret, topic string) {
 	}
 }
 
-// DeviceInfo 代表设备信息的结构体
-type DeviceInfo struct {
-	Timestamp time.Time
-	Message   string
+// PbMsg 代表设备信息的结构体
+type PbMsg struct {
+	Timestamp   time.Time `json:"timestamp"`
+	Message     string    `json:"message"`
+	MessageType string    `json:"message_type"`
 }
 
 // 全局变量，用于存储接收到的设备信息
 var (
-	deviceInfos []DeviceInfo
-	mutex       sync.Mutex
+	pbMsgs []PbMsg
+	mutex  sync.Mutex
 )
 
 // startUDPListener 启动一个 UDP 组播侦听器
@@ -175,22 +177,71 @@ func startUDPListener() {
 			fmt.Println("Error reading from UDP:", err)
 			continue
 		}
-
-		message := strings.TrimSpace(string(buf[:n]))
-		saveDeviceInfo(message)
+		savePbMsg(buf[:n])
 	}
 }
 
-// saveDeviceInfo 保存设备信息到全局变量
-func saveDeviceInfo(message string) {
+// savePbMsg 保存设备信息到全局变量
+func savePbMsg(message []byte) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
-	deviceInfo := DeviceInfo{
-		Timestamp: time.Now(),
-		Message:   message,
+	var receivedMsg proto.PbMsg
+
+	// 使用 gProto.Unmarshal 解析数据到消息实例
+	err := gProto.Unmarshal(message, &receivedMsg)
+	if err != nil {
+		fmt.Println("解析错误:", err)
+		return
 	}
-	deviceInfos = append(deviceInfos, deviceInfo)
+
+	var msgIdName string = proto.MsgId_name[int32(receivedMsg.Id)]
+	var data []byte = receivedMsg.Data
+
+	var unmarshaledData interface{} // 使用空接口来存储不同类型的数据
+
+	fmt.Println("msgIdName: ", msgIdName)
+
+	if msgIdName == "DEVICE_ADVERTISE" {
+		var temp proto.DeviceAdvertiseData
+		err = gProto.Unmarshal(data, &temp)
+		if err != nil {
+			fmt.Println("解析错误:", err)
+			return
+		}
+		unmarshaledData = &temp
+	} else if msgIdName == "RADIO_FREQ_GET" {
+		var temp proto.RadioFreqPack
+		err = gProto.Unmarshal(data, &temp)
+		if err != nil {
+			fmt.Println("解析错误:", err)
+			return
+		}
+		unmarshaledData = &temp
+	}
+
+	// 检查 unmarshaledData 是否已经被赋值
+	if unmarshaledData == nil {
+		fmt.Println("未找到匹配的消息类型")
+		return
+	}
+
+	jsonBytes, err := json.Marshal(unmarshaledData)
+	if err != nil {
+		fmt.Println("转换为 JSON 时发生错误:", err)
+		return
+	}
+
+	// 将字节切片转换为字符串
+	jsonString := string(jsonBytes)
+	fmt.Println("JSON 字符串:", jsonString)
+
+	pbMsg := PbMsg{
+		Timestamp:   time.Now(),
+		Message:     jsonString,
+		MessageType: msgIdName,
+	}
+	pbMsgs = append(pbMsgs, pbMsg)
 }
 
 // getDevicesHandler 处理 HTTP 请求，返回接收到的设备信息
@@ -198,39 +249,19 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	mutex.Lock()
 	defer mutex.Unlock()
 
+	// 将 pbMsgs 转换为 JSON
+	jsonData, err := json.Marshal(pbMsgs)
+	if err != nil {
+		http.Error(w, "Error marshalling to JSON", http.StatusInternalServerError)
+		return
+	}
+
+	// 设置响应头
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	fmt.Fprintf(w, "[")
-	for i, deviceInfo := range deviceInfos {
-		if i > 0 {
-			fmt.Fprintf(w, ",")
-		}
-		fmt.Fprintf(w, `{"timestamp":"%s","message":"%s"}`, deviceInfo.Timestamp.Format(time.RFC3339), deviceInfo.Message)
-	}
-	fmt.Fprintf(w, "]")
-}
-
-// getProtoHandler 处理 HTTP 请求，返回接收到的proto信息
-func getProtoHandler(w http.ResponseWriter, r *http.Request) {
-	mutex.Lock()
-	defer mutex.Unlock()
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-
-	dateReply := &proto.DateGetReply{
-		Status: -1,
-		// 时间格式：2019-8-28 11:30:00
-		Date: "2019-8-28 11:30:00",
-		// ntp 服务器
-		NtpServer: "1.2.3.4",
-	}
-	fmt.Fprintf(w, "{")
-	fmt.Fprintf(w, `"Status":"%s",`, dateReply.Status)
-	fmt.Fprintf(w, `"Date":"%s",`, dateReply.Date)
-	fmt.Fprintf(w, `"NtpServer":"%s",`, dateReply.NtpServer)
-	fmt.Fprintf(w, "}")
+	// 将 JSON 数据写入响应
+	w.Write(jsonData)
 }
 
 func main() {
@@ -248,8 +279,6 @@ func main() {
 	if port == "" {
 		port = "63000" // 默认端口
 	}
-
-	http.HandleFunc("/protoInfo", getProtoHandler)
 
 	// 启动 HTTP 服务器，监听端口 63000
 	log.Println("HTTP server started on :" + port)
