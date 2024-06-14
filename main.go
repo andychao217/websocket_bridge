@@ -269,8 +269,12 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 
-	// 将 JSON 数据写入响应
-	w.Write(jsonData)
+	if len(pbMsgs) > 0 {
+		// 将 JSON 数据写入响应
+		w.Write(jsonData)
+	} else {
+		w.Write([]byte(""))
+	}
 }
 
 func main() {
@@ -286,7 +290,7 @@ func main() {
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
-		port = "63000" // 默认端口
+		port = "63001" // 默认端口
 	}
 
 	// 启动 HTTP 服务器，监听端口 63000
