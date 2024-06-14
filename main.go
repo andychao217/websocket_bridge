@@ -246,6 +246,15 @@ func savePbMsg(message []byte) {
 
 // getDevicesHandler 处理 HTTP 请求，返回接收到的设备信息
 func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	// 设置 CORS 头
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+
+	if r.Method == "OPTIONS" {
+		return // 如果是预检请求，直接返回
+	}
+
 	mutex.Lock()
 	defer mutex.Unlock()
 
