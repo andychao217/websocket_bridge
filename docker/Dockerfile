@@ -29,9 +29,6 @@ RUN apk update \
 FROM scratch
 COPY --from=builder /exe /
 
-# 暴露程序的端口（假设程序监听8080端口）  
-EXPOSE 63000 
-
 ENTRYPOINT ["/exe"]
 
 

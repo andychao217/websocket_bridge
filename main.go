@@ -210,15 +210,16 @@ func savePbMsg(message []byte) {
 			return
 		}
 		unmarshaledData = &temp
-	} else if msgIdName == "RADIO_FREQ_GET" {
-		var temp proto.RadioFreqPack
-		err = gProto.Unmarshal(data, &temp)
-		if err != nil {
-			fmt.Println("解析错误:", err)
-			return
-		}
-		unmarshaledData = &temp
 	}
+	// else if msgIdName == "RADIO_FREQ_GET" {
+	// 	var temp proto.RadioFreqPack
+	// 	err = gProto.Unmarshal(data, &temp)
+	// 	if err != nil {
+	// 		fmt.Println("解析错误:", err)
+	// 		return
+	// 	}
+	// 	unmarshaledData = &temp
+	// }
 
 	// 检查 unmarshaledData 是否已经被赋值
 	if unmarshaledData == nil {
@@ -250,9 +251,11 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
 
-	if r.Method == "OPTIONS" {
-		return // 如果是预检请求，直接返回
+	if r.Method == http.MethodOptions {
+		return
 	}
 
 	mutex.Lock()
@@ -264,10 +267,6 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error marshalling to JSON", http.StatusInternalServerError)
 		return
 	}
-
-	// 设置响应头
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
 
 	if len(pbMsgs) > 0 {
 		// 将 JSON 数据写入响应
@@ -290,10 +289,10 @@ func main() {
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
-		port = "63001" // 默认端口
+		port = "6300`" // 默认端口
 	}
 
-	// 启动 HTTP 服务器，监听端口 63000
+	// 启动 HTTP 服务器，监听端口 63001`
 	log.Println("HTTP server started on :" + port)
 	err := http.ListenAndServe(":"+port, nil)
 	if err != nil {
