@@ -198,51 +198,46 @@ func savePbMsg(message []byte) {
 	var msgIdName string = proto.MsgId_name[int32(receivedMsg.Id)]
 	var data []byte = receivedMsg.Data
 
-	var unmarshaledData interface{} // 使用空接口来存储不同类型的数据
-
-	fmt.Println("msgIdName: ", msgIdName)
-
 	if msgIdName == "DEVICE_ADVERTISE" {
+		var unmarshaledData interface{} // 使用空接口来存储不同类型的数据
 		var temp proto.DeviceAdvertiseData
 		err = gProto.Unmarshal(data, &temp)
 		if err != nil {
 			fmt.Println("解析错误:", err)
 			return
 		}
+		deviceName := temp.DeviceName
 		unmarshaledData = &temp
-	}
-	// else if msgIdName == "RADIO_FREQ_GET" {
-	// 	var temp proto.RadioFreqPack
-	// 	err = gProto.Unmarshal(data, &temp)
-	// 	if err != nil {
-	// 		fmt.Println("解析错误:", err)
-	// 		return
-	// 	}
-	// 	unmarshaledData = &temp
-	// }
 
-	// 检查 unmarshaledData 是否已经被赋值
-	if unmarshaledData == nil {
-		fmt.Println("未找到匹配的消息类型")
-		return
-	}
+		jsonBytes, err := json.Marshal(unmarshaledData)
+		if err != nil {
+			fmt.Println("转换为 JSON 时发生错误:", err)
+			return
+		}
 
-	jsonBytes, err := json.Marshal(unmarshaledData)
-	if err != nil {
-		fmt.Println("转换为 JSON 时发生错误:", err)
-		return
-	}
+		// 将字节切片转换为字符串
+		jsonString := string(jsonBytes)
+		fmt.Println("JSON 字符串:", jsonString)
 
-	// 将字节切片转换为字符串
-	jsonString := string(jsonBytes)
-	fmt.Println("JSON 字符串:", jsonString)
+		// 检查 pbMsgs 中是否已经存在相同的 jsonString
+		exists := false
+		for _, msg := range pbMsgs {
+			if msg.Message == jsonString || strings.Contains(msg.Message, deviceName) {
+				exists = true
+				break
+			}
+		}
 
-	pbMsg := PbMsg{
-		Timestamp:   time.Now(),
-		Message:     jsonString,
-		MessageType: msgIdName,
+		// 如果不存在相同的 jsonString，则添加新的 PbMsg
+		if !exists {
+			pbMsg := PbMsg{
+				Timestamp:   time.Now(),
+				Message:     jsonString,
+				MessageType: msgIdName,
+			}
+			pbMsgs = append(pbMsgs, pbMsg)
+		}
 	}
-	pbMsgs = append(pbMsgs, pbMsg)
 }
 
 // getDevicesHandler 处理 HTTP 请求，返回接收到的设备信息
