@@ -244,14 +244,10 @@ func savePbMsg(message []byte) {
 func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
-	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Methods", "GET")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-
-	if r.Method == http.MethodOptions {
-		return
-	}
 
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -271,20 +267,106 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
+	// 设置 CORS 头
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var reqData []*proto.DeviceAdvertiseData
+	err := json.NewDecoder(r.Body).Decode(&reqData)
+	if err != nil {
+		http.Error(w, "Failed to decode JSON", http.StatusBadRequest)
+		return
+	}
+
+	for _, item := range reqData {
+		// 序列化protobuf消息
+		dataBuf, err := gProto.Marshal(item)
+		if err != nil {
+			http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("dataBuf: ", item.DeviceName)
+		fmt.Println("TenantId: ", item.TenantId)
+
+		// 创建protobuf消息
+		pbMsg := &proto.PbMsg{
+			Id:   380,
+			Data: dataBuf,
+		}
+
+		fmt.Println("pbMsg: ", pbMsg.Id)
+
+		// 序列化protobuf消息
+		buf, err := gProto.Marshal(pbMsg)
+		if err != nil {
+			http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
+			return
+		}
+
+		// 发送UDP数据
+		sendUDP(buf)
+	}
+
+	fmt.Fprintf(w, "Data sent via UDP")
+}
+
+// 发送UDP信息
+func sendUDP(data []byte) {
+	port := os.Getenv("MG_SOCKET_BRIDGE_UDP_PORT")
+	if port == "" {
+		port = "60000" // 默认端口
+	}
+	ip := os.Getenv("MG_SOCKET_BRIDGE_UDP_IP")
+	if ip == "" {
+		ip = "232.0.0.254" // 默认ip地址
+	}
+	serverAddr, err := net.ResolveUDPAddr("udp", ip+":"+port)
+	if err != nil {
+		fmt.Println("ResolveUDPAddr failed:", err)
+		return
+	}
+
+	conn, err := net.DialUDP("udp", nil, serverAddr)
+	if err != nil {
+		fmt.Println("DialUDP failed:", err)
+		return
+	}
+	defer conn.Close()
+
+	_, err = conn.Write(data)
+	if err != nil {
+		fmt.Println("Write data failed:", err)
+		return
+	}
+
+	fmt.Println("UDP message sent")
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
-
 	// 启动一个 goroutine 来处理消息广播
 	go handleMessages()
 
 	// 启动 UDP 组播侦听器
 	go startUDPListener()
+
 	http.HandleFunc("/devices", getDevicesHandler)
+	http.HandleFunc("/addDeviceReply", addDeviceReplyHandler)
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
-		port = "6300`" // 默认端口
+		port = "63001" // 默认端口
 	}
 
 	// 启动 HTTP 服务器，监听端口 63001`
