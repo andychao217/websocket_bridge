@@ -1,9 +1,11 @@
 package main
 
 import (
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"log"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -352,6 +354,134 @@ func sendUDP(data []byte) {
 	fmt.Println("UDP message sent")
 }
 
+func generateClientID() string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	clientID := make([]byte, 20)
+	for i := range clientID {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		clientID[i] = charset[num.Int64()]
+	}
+	return string(clientID)
+}
+
+func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
+	// 设置 CORS 头
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	// 处理 OPTIONS 请求
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// 处理 POST 请求
+	if r.Method == http.MethodPost {
+		// 这里可以添加处理 POST 请求的逻辑
+		var params struct {
+			ChannelID     string `json:"channelID"`
+			ThingIdentity string `json:"thingIdentity"`
+			Host          string `json:"host"`
+		}
+
+		err := json.NewDecoder(r.Body).Decode(&params)
+		if err != nil {
+			http.Error(w, "Error decoding request body", http.StatusBadRequest)
+			return
+		}
+
+		fmt.Printf("ChannelID: %v\n", params.ChannelID)
+		fmt.Printf("ThingIdentity: %v\n", params.ThingIdentity)
+		fmt.Printf("Host: %v\n", params.Host)
+
+		// 构建 MQTT 主题
+		topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)
+
+		// 生成随机字符串作为 MQTT 客户端 ID
+		clientID := generateClientID()
+
+		fmt.Println("clientID: ", clientID)
+
+		// MQTT 配置
+		opts := mqtt.NewClientOptions().
+			AddBroker(fmt.Sprintf("tcp://%s:1883", params.Host)).
+			SetClientID(clientID).
+			SetUsername("platform").
+			SetPassword("platform").
+			SetAutoReconnect(true)
+
+		// 创建 MQTT 客户端
+		client := mqtt.NewClient(opts)
+		if token := client.Connect(); token.Wait() && token.Error() != nil {
+			fmt.Printf("Failed to connect to MQTT broker: %v\n", token.Error())
+			return
+		}
+
+		defer client.Disconnect(200)
+
+		var reqData = proto.DeviceReboot{
+			Username: "platform",
+		}
+		// 序列化protobuf消息
+		dataBuf, err := gProto.Marshal(&reqData)
+		if err != nil {
+			http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
+			return
+		}
+		// 创建protobuf消息
+		pbMsg := &proto.PbMsg{
+			Id:   359,
+			Data: dataBuf,
+		}
+		// 序列化protobuf消息
+		buf, err := gProto.Marshal(pbMsg)
+		if err != nil {
+			http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Println("DeviceReboot: ", buf)
+
+		// 发送 MQTT 消息
+		token := client.Publish(strings.Replace(topic, " ", "", -1), 0, false, buf)
+		token.Wait()
+		if token.Error() != nil {
+			http.Error(w, "Error sending MQTT message", http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprintf(w, "Message sent to topic: %s\n", topic)
+
+		jsonBytes, err := json.Marshal(&reqData)
+		if err != nil {
+			fmt.Println("转换为 JSON 时发生错误:", err)
+			return
+		}
+		// 将字节切片转换为字符串
+		jsonString := string(jsonBytes)
+		fmt.Println("DeviceReboot: ", jsonString)
+
+		jsonBytes, err = json.Marshal(pbMsg)
+		if err != nil {
+			fmt.Println("转换为 JSON 时发生错误:", err)
+			return
+		}
+		// 将字节切片转换为字符串
+		jsonString = string(jsonBytes)
+		fmt.Println("PbMsg: ", jsonString)
+
+		fmt.Println("Message sent to topic: ", topic)
+		return
+
+	}
+
+	// 如果是其他方法，则返回方法不允许的错误
+	http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
@@ -362,6 +492,7 @@ func main() {
 	go startUDPListener()
 
 	http.HandleFunc("/devices", getDevicesHandler)
+	http.HandleFunc("/rebootDevice", rebootDeviceHandler)
 	http.HandleFunc("/addDeviceReply", addDeviceReplyHandler)
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
