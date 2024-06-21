@@ -151,7 +151,7 @@ var (
 	mutex  sync.Mutex
 )
 
-// startUDPListener 启动一个 UDP 组播侦听器
+// startUDPListener 启动一个 UDP 组播侦听器-扫描设备
 func startUDPListener() {
 	port := os.Getenv("MG_SOCKET_BRIDGE_UDP_PORT")
 	if port == "" {
@@ -221,10 +221,16 @@ func savePbMsg(message []byte) {
 		jsonString := string(jsonBytes)
 		fmt.Println("JSON 字符串:", jsonString)
 
-		// 检查 pbMsgs 中是否已经存在相同的 jsonString
+		// 检查 pbMsgs 中是否已经存在相同的 jsonString或者是否有相同的deviceName，如果有就用新的替换旧的
 		exists := false
-		for _, msg := range pbMsgs {
+		for i, msg := range pbMsgs {
 			if msg.Message == jsonString || strings.Contains(msg.Message, deviceName) {
+				// 更新找到的 PbMsg
+				pbMsgs[i] = PbMsg{
+					Timestamp:   time.Now(),
+					Message:     jsonString,
+					MessageType: msgIdName,
+				}
 				exists = true
 				break
 			}
@@ -242,7 +248,7 @@ func savePbMsg(message []byte) {
 	}
 }
 
-// getDevicesHandler 处理 HTTP 请求，返回接收到的设备信息
+// 返回UDP扫描到的设备信息
 func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
@@ -269,6 +275,7 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// 平台系统添加设备成功后，给设备回一个确认消息
 func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
@@ -354,6 +361,7 @@ func sendUDP(data []byte) {
 	fmt.Println("UDP message sent")
 }
 
+// 生成mqtt clientID字符串
 func generateClientID() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	clientID := make([]byte, 20)
@@ -364,6 +372,7 @@ func generateClientID() string {
 	return string(clientID)
 }
 
+// 给设备发送重启指令
 func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
