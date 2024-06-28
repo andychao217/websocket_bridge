@@ -151,6 +151,13 @@ var (
 	mutex  sync.Mutex
 )
 
+// clearPbMsgs 清空 pbMsgs
+func clearPbMsgs() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	pbMsgs = nil
+}
+
 // startUDPListener 启动一个 UDP 组播侦听器-扫描设备
 func startUDPListener() {
 	port := os.Getenv("MG_SOCKET_BRIDGE_UDP_PORT")
@@ -173,6 +180,15 @@ func startUDPListener() {
 	defer conn.Close()
 
 	buf := make([]byte, 1024)
+
+	// 启动定时器，每隔15秒清空一次 pbMsgs
+	go func() {
+		for {
+			time.Sleep(15 * time.Second)
+			clearPbMsgs()
+		}
+	}()
+
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {

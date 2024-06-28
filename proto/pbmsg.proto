@@ -1,4 +1,9 @@
 syntax = "proto3";
+
+package proto;  // 替换为你的包名
+
+option go_package = "github.com/yourusername/yourproject/proto";
+
 option optimize_for = LITE_RUNTIME;
 
 enum MsgId {
@@ -770,6 +775,7 @@ message DeviceInfo {
 	ExtendBoardPack extend_boards = 36;
 	// 报警输出配置
 	AlarmOutCfg alarm_out_cfg = 37;
+	string gateway_tenant_id = 38;
 	// 设备功能列表
 	DeviceFeatureList feature_list = 500;
 }
@@ -1986,7 +1992,7 @@ message LowShelfCfg {
 }
 
 message LowShelfSet {
-	LowShelfCfg cfg = 1;	
+	LowShelfCfg cfg = 1;
 };
 
 message LowShelfSetReply {
@@ -2020,8 +2026,10 @@ message DeviceAdvertiseData {
 	string product_name = 3;
 	// 网络配置信息
 	NetCfg netcfg = 4;
+	// 输出通道
+	ChannelPack out_channel = 5;
 	// 设备所属租户
-	string tenant_id = 5;
+	string tenant_id = 6;
 }
 
 enum FactoryTestId {
