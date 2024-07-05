@@ -409,6 +409,7 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 			ChannelID     string `json:"channelID"`
 			ThingIdentity string `json:"thingIdentity"`
 			Host          string `json:"host"`
+			ComID         string `json:"comID"`
 		}
 
 		err := json.NewDecoder(r.Body).Decode(&params)
@@ -420,6 +421,7 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("ChannelID: %v\n", params.ChannelID)
 		fmt.Printf("ThingIdentity: %v\n", params.ThingIdentity)
 		fmt.Printf("Host: %v\n", params.Host)
+		fmt.Printf("ComID: %v\n", params.ComID)
 
 		// 构建 MQTT 主题
 		topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)
@@ -433,8 +435,8 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		opts := mqtt.NewClientOptions().
 			AddBroker(fmt.Sprintf("tcp://%s:1883", params.Host)).
 			SetClientID(clientID).
-			SetUsername("platform").
-			SetPassword("platform").
+			SetUsername("platform" + params.ComID).
+			SetPassword("platform" + params.ComID).
 			SetAutoReconnect(true)
 
 		// 创建 MQTT 客户端
@@ -447,7 +449,7 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		defer client.Disconnect(200)
 
 		var reqData = proto.DeviceReboot{
-			Username: "platform",
+			Username: "platform" + params.ComID,
 		}
 		// 序列化protobuf消息
 		dataBuf, err := gProto.Marshal(&reqData)
