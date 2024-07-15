@@ -1,9 +1,11 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"math/big"
 	"net"
@@ -15,6 +17,8 @@ import (
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
+	"github.com/minio/minio-go/v7"
+	"github.com/minio/minio-go/v7/pkg/credentials"
 
 	proto "github.com/andychao217/magistrala-websocket_bridge/proto"
 	gProto "google.golang.org/protobuf/proto"
@@ -28,6 +32,8 @@ var upgrader = websocket.Upgrader{
 		return true
 	},
 }
+var minioClient *minio.Client // MinIO 客户端
+var bucketName string         // 存储桶名称
 
 // messageHistory 是一个包含 sync.RWMutex 和 map 的结构体，用于存储消息主题和内容组合的键以及对应的时间戳。
 var messageHistory = struct {
@@ -509,6 +515,170 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 }
 
+// 获取本机 IP 地址
+func getLocalIPAddress() (string, error) {
+	interfaces, err := net.Interfaces()
+	if err != nil {
+		return "", err
+	}
+
+	for _, inter := range interfaces {
+		if inter.Flags&net.FlagUp == 0 {
+			continue
+		}
+		if inter.Flags&net.FlagLoopback != 0 {
+			continue
+		}
+		addrs, err := inter.Addrs()
+		if err != nil {
+			return "", err
+		}
+
+		for _, addr := range addrs {
+			ip, ok := addr.(*net.IPNet)
+			if !ok || ip.IP.IsLoopback() {
+				continue
+			}
+			if ip.IP.To4() != nil {
+				return ip.IP.String(), nil
+			}
+		}
+	}
+	return "", fmt.Errorf("no active network interfaces found")
+}
+
+// 初始化 MinIO 客户端
+func initMinio() {
+	// 初始化 MinIO 客户端
+	var err error
+	localIP, err := getLocalIPAddress()
+	if err != nil {
+		log.Fatalf("Failed to get local IP address: %v", err)
+	}
+	endpoint := localIP + ":9100"
+
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	if accessKey == "" {
+		accessKey = "admin"
+	}
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+	if secretKey == "" {
+		secretKey = "12345678"
+	}
+	bucketName = os.Getenv("MINIO_BUCKET_NAME")
+	if bucketName == "" {
+		bucketName = "nxt-tenant"
+	}
+
+	minioClient, err = minio.New(endpoint, &minio.Options{
+		Creds:  credentials.NewStaticV4(accessKey, secretKey, ""),
+		Secure: false,
+	})
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// 确保 bucket 存在
+	err = minioClient.MakeBucket(context.Background(), bucketName, minio.MakeBucketOptions{})
+	if err != nil {
+		exists, errBucketExists := minioClient.BucketExists(context.Background(), bucketName)
+		if errBucketExists == nil && exists {
+			fmt.Printf("We already own %s\n", bucketName)
+		} else {
+			log.Fatalln(err)
+		}
+	}
+}
+
+// 生成日程列表
+func buildTaskList(client *minio.Client, bucket, prefix string) []*proto.Task {
+	opts := minio.ListObjectsOptions{
+		Recursive: false,
+		Prefix:    prefix,
+	}
+	ctx := context.Background()
+
+	objectCh := client.ListObjects(ctx, bucket, opts)
+
+	var tasks []*proto.Task
+	for object := range objectCh {
+		if object.Err != nil {
+			log.Println(object.Err)
+			continue
+		}
+
+		objectName := object.Key
+		obj, err := minioClient.GetObject(ctx, bucketName, objectName, minio.GetObjectOptions{})
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		data, err := io.ReadAll(obj)
+		obj.Close() // 确保在读取完数据后立即关闭对象
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+
+		var task proto.Task
+		if err := gProto.Unmarshal(data, &task); err != nil {
+			log.Println(err)
+			continue
+		}
+
+		tasks = append(tasks, &task)
+	}
+	return tasks
+}
+
+// 获取日程列表
+func getTaskListHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type GetResourceListRequest struct {
+		Path  string `json:"path"`
+		ComID string `json:"comID"`
+	}
+
+	var request GetResourceListRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 假设comID用于构建bucket名称和路径
+	var prefix string
+	if request.Path == "" {
+		prefix = request.ComID + "/task/"
+	} else {
+		prefix = request.Path
+	}
+
+	// 构建日程列表
+	taskList := buildTaskList(minioClient, bucketName, prefix)
+
+	jsonData, err := json.MarshalIndent(taskList, "", "  ")
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(jsonData)
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
@@ -518,9 +688,12 @@ func main() {
 	// 启动 UDP 组播侦听器
 	go startUDPListener()
 
-	http.HandleFunc("/devices", getDevicesHandler)
-	http.HandleFunc("/rebootDevice", rebootDeviceHandler)
-	http.HandleFunc("/addDeviceReply", addDeviceReplyHandler)
+	http.HandleFunc("/devices", getDevicesHandler)            // 获取设备列表
+	http.HandleFunc("/rebootDevice", rebootDeviceHandler)     // 重启设备
+	http.HandleFunc("/addDeviceReply", addDeviceReplyHandler) // 添加设备回复
+
+	initMinio() // 初始化MinIO
+	http.HandleFunc("/taskList", getTaskListHandler)
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
