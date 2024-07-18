@@ -396,8 +396,8 @@ func generateClientID() string {
 	return string(clientID)
 }
 
-// 给设备发送重启指令
-func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
+// 给设备发送指令
+func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -418,6 +418,7 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 			ThingIdentity string `json:"thingIdentity"`
 			Host          string `json:"host"`
 			ComID         string `json:"comID"`
+			ControlType   string `json:"controlType"`
 		}
 
 		err := json.NewDecoder(r.Body).Decode(&params)
@@ -456,11 +457,20 @@ func rebootDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 		defer client.Disconnect(200)
 
-		var reqData = proto.DeviceReboot{
-			Username: "platform" + params.ComID,
+		var reqData gProto.Message
+
+		switch params.ControlType {
+		case "reboot":
+			reqData = &proto.DeviceReboot{
+				Username: "platform" + params.ComID,
+			}
+		default:
+			http.Error(w, "Invalid control type", http.StatusBadRequest)
+			return
 		}
+
 		// 序列化protobuf消息
-		dataBuf, err := gProto.Marshal(&reqData)
+		dataBuf, err := gProto.Marshal(reqData)
 		if err != nil {
 			http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
 			return
@@ -990,7 +1000,7 @@ func main() {
 	go startUDPListener()
 
 	http.HandleFunc("/devices", getDevicesHandler)            // 获取设备列表
-	http.HandleFunc("/rebootDevice", rebootDeviceHandler)     // 重启设备
+	http.HandleFunc("/controlDevice", controlDeviceHandler)   // 控制设备
 	http.HandleFunc("/addDeviceReply", addDeviceReplyHandler) // 添加设备回复
 
 	initMinio() // 初始化MinIO
