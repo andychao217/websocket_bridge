@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -16,6 +17,7 @@ import (
 	"time"
 
 	mqtt "github.com/eclipse/paho.mqtt.golang"
+	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	"github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
@@ -679,6 +681,305 @@ func getTaskListHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(jsonData)
 }
 
+// 日程请求结构体-添加、更新、复制
+type TaskRequest struct {
+	Path  string     `json:"path"`
+	ComID string     `json:"comID"`
+	Task  proto.Task `json:"task"`
+}
+type TaskResponse struct {
+	Message string `json:"message"`
+}
+
+// 检查日程文件是否已存在
+func CheckFileExists(path, uuid string) error {
+	// 构建文件路径
+	filePath := path + uuid
+
+	// 检查文件是否存在
+	_, err := minioClient.StatObject(context.Background(), bucketName, filePath, minio.StatObjectOptions{})
+	if err == nil {
+		return fmt.Errorf("file with UUID %s already exists at path %s", uuid, path)
+	}
+
+	// 如果错误不是文件不存在，则返回错误
+	if minio.ToErrorResponse(err).Code != "NoSuchKey" {
+		return err
+	}
+
+	return nil
+}
+
+// 添加日程
+func addTaskHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request TaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 假设comID用于构建bucket名称和路径
+	var prefix string
+	if request.Path == "" {
+		prefix = request.ComID + "/task/"
+	} else {
+		prefix = request.Path
+	}
+
+	newTask := &request.Task
+	var filePath string
+
+	for {
+		// 生成UUID作为文件名
+		uuid := uuid.New().String()
+		newTask.Uuid = uuid
+		filePath = prefix + uuid
+
+		// 检查文件是否已存在
+		err = CheckFileExists(prefix, uuid)
+		if err == nil {
+			// 如果文件不存在，则退出循环
+			break
+		}
+	}
+
+	// 将结构体编码为proto流
+	newTaskData, err := gProto.Marshal(newTask)
+	if err != nil {
+		http.Error(w, "Failed to encode proto message", http.StatusInternalServerError)
+		return
+	}
+
+	// 使用新的proto流替换已有文件的内容
+	contentType := "application/octet-stream"
+	_, err = minioClient.PutObject(context.Background(), bucketName, filePath, bytes.NewReader(newTaskData), int64(len(newTaskData)), minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		http.Error(w, "Failed to upload to MinIO", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+	// 创建响应数据
+	response := TaskResponse{
+		Message: "Added successfully!",
+	}
+	// 将响应数据编码为JSON并写入响应
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// 修改日程
+func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "PUT")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPut {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request TaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 将结构体编码为proto流
+	newTaskData, err := gProto.Marshal(&request.Task)
+	if err != nil {
+		http.Error(w, "Failed to encode proto message", http.StatusInternalServerError)
+		return
+	}
+
+	// 假设comID用于构建bucket名称和路径
+	var prefix string
+	if request.Path == "" {
+		prefix = request.ComID + "/task/"
+	} else {
+		prefix = request.Path
+	}
+	filePath := prefix + request.Task.Uuid
+
+	// 检查文件是否存在
+	_, err = minioClient.StatObject(context.Background(), bucketName, filePath, minio.StatObjectOptions{})
+	if err != nil {
+		http.Error(w, "File not found in MinIO", http.StatusNotFound)
+		return
+	}
+
+	// 使用新的proto流替换已有文件的内容
+	contentType := "application/octet-stream"
+	_, err = minioClient.PutObject(context.Background(), bucketName, filePath, bytes.NewReader(newTaskData), int64(len(newTaskData)), minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		http.Error(w, "Failed to upload to MinIO", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+	// 创建响应数据
+	response := TaskResponse{
+		Message: "Updated successfully!",
+	}
+	// 将响应数据编码为JSON并写入响应
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// 复制日程
+func copyTaskHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request TaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 假设comID用于构建bucket名称和路径
+	var prefix string
+	if request.Path == "" {
+		prefix = request.ComID + "/task/"
+	} else {
+		prefix = request.Path
+	}
+
+	newTask := &request.Task
+	var filePath string
+
+	for {
+		// 生成UUID作为文件名
+		uuid := uuid.New().String()
+		newTask.Uuid = uuid
+		filePath = prefix + uuid
+
+		// 检查文件是否已存在
+		err = CheckFileExists(prefix, uuid)
+		if err == nil {
+			// 如果文件不存在，则退出循环
+			break
+		}
+	}
+
+	// 将结构体编码为proto流
+	newTaskData, err := gProto.Marshal(newTask)
+	if err != nil {
+		http.Error(w, "Failed to encode proto message", http.StatusInternalServerError)
+		return
+	}
+
+	contentType := "application/octet-stream"
+	_, err = minioClient.PutObject(context.Background(), bucketName, filePath, bytes.NewReader(newTaskData), int64(len(newTaskData)), minio.PutObjectOptions{ContentType: contentType})
+	if err != nil {
+		http.Error(w, "Failed to copy task", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+	// 创建响应数据
+	response := TaskResponse{
+		Message: "Copied successfully!",
+	}
+	// 将响应数据编码为JSON并写入响应
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+// 删除日程
+func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodDelete {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	type DeleteTaskRequest struct {
+		Path  string `json:"path"`
+		ComID string `json:"comID"`
+		UUID  string `json:"uuid"`
+	}
+
+	var request DeleteTaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 假设comID用于构建bucket名称和路径
+	var prefix string
+	if request.Path == "" {
+		prefix = request.ComID + "/task/"
+	} else {
+		prefix = request.Path
+	}
+
+	err = minioClient.RemoveObject(context.Background(), bucketName, prefix+request.UUID, minio.RemoveObjectOptions{})
+	if err != nil {
+		http.Error(w, "Failed to delete file from MinIO", http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+	// 创建响应数据
+	response := TaskResponse{
+		Message: "Deleted successfully!",
+	}
+	// 将响应数据编码为JSON并写入响应
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
@@ -694,6 +995,10 @@ func main() {
 
 	initMinio() // 初始化MinIO
 	http.HandleFunc("/taskList", getTaskListHandler)
+	http.HandleFunc("/addTask", addTaskHandler)
+	http.HandleFunc("/updateTask", updateTaskHandler)
+	http.HandleFunc("/copyTask", copyTaskHandler)
+	http.HandleFunc("/deleteTask", deleteTaskHandler)
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
