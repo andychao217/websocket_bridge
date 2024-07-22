@@ -388,7 +388,7 @@ func sendUDP(data []byte) {
 // 生成mqtt clientID字符串
 func generateClientID() string {
 	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	clientID := make([]byte, 20)
+	clientID := make([]byte, 10)
 	for i := range clientID {
 		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
 		clientID[i] = charset[num.Int64()]
@@ -436,18 +436,18 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 构建 MQTT 主题
 	topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)
-
+	nameAndPass := "platform" + params.ComID
 	// 生成随机字符串作为 MQTT 客户端 ID
-	clientID := generateClientID()
+	clientID := nameAndPass + "_" + generateClientID()
 
-	fmt.Println("clientID: ", clientID)
+	fmt.Println("clientID 123: ", clientID)
 
 	// MQTT 配置
 	opts := mqtt.NewClientOptions().
 		AddBroker(fmt.Sprintf("tcp://%s:1883", params.Host)).
 		SetClientID(clientID).
-		SetUsername("platform" + params.ComID).
-		SetPassword("platform" + params.ComID).
+		SetUsername(nameAndPass).
+		SetPassword(nameAndPass).
 		SetAutoReconnect(true)
 
 	// 创建 MQTT 客户端
