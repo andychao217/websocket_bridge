@@ -12,6 +12,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -43,6 +44,18 @@ var messageHistory = struct {
 	m map[string]time.Time
 }{m: make(map[string]time.Time)}
 
+// 生成mqtt clientID字符串
+func generateClientID() string {
+	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	clientID := make([]byte, 10)
+	for i := range clientID {
+		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		clientID[i] = charset[num.Int64()]
+	}
+	timestamp := strconv.FormatInt(time.Now().Unix(), 10) // 将时间戳转换为字符串
+	return string(clientID) + timestamp
+}
+
 // MQTT 消息处理器
 // messagePubHandler 函数检查消息是否已经在过去2秒内收到过。如果是，则不广播该消息；如果不是，则更新消息历史记录并广播消息。
 // 使用读写锁 sync.RWMutex 来确保在并发环境中安全地访问和修改 messageHistory。
@@ -64,10 +77,10 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 
 // WebSocket 消息结构
 type WebSocketMessage struct {
-	Topics      string `json:"topics"`
-	Host        string `json:"host"`
-	ThingSecret string `json:"thingSecret"`
-	Message     string `json:"message"`
+	Topics      []string `json:"topics"`
+	Host        string   `json:"host"`
+	ThingSecret string   `json:"thingSecret"`
+	Message     string   `json:"message"`
 }
 
 // WebSocket 处理器
@@ -87,12 +100,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			delete(clients, ws)
 			break
 		}
-		handleMessage(ws, message)
+		handleMessage(message)
 	}
 }
 
 // 处理 WebSocket 消息
-func handleMessage(ws *websocket.Conn, message []byte) {
+func handleMessage(message []byte) {
 	var msg WebSocketMessage
 	if err := json.Unmarshal(message, &msg); err != nil {
 		log.Printf("Error parsing JSON: %v", err)
@@ -100,19 +113,80 @@ func handleMessage(ws *websocket.Conn, message []byte) {
 	}
 
 	if msg.Message == "connect" {
-		topics := strings.Split(msg.Topics, ";")
-		for _, topic := range topics {
-			subscribeToMQTTTopic(msg.Host, ws.RemoteAddr().String(), msg.ThingSecret, topic+"/#")
+		for _, topic := range msg.Topics {
+			subscribeToMQTTTopic(msg.Host, msg.ThingSecret, topic+"/#")
 		}
 	}
 }
 
 // 广播消息给所有 WebSocket 客户端
 func handleMessages() {
+	type PayloadData struct {
+		Data    interface{} `json:"data"`
+		MsgName string      `json:"msgName"`
+	}
+
 	for payload := range broadcast {
 		fmt.Printf("Received payload: %s\n", string(payload))
+
+		var receivedMsg proto.PbMsg
+		// 使用 gProto.Unmarshal 解析数据到消息实例
+		err := gProto.Unmarshal(payload, &receivedMsg)
+		if err != nil {
+			fmt.Println("解析错误:", err)
+			continue
+		}
+
+		var msgIdName string = proto.MsgId_name[int32(receivedMsg.Id)]
+		var data []byte = receivedMsg.Data
+
+		var unmarshaledData PayloadData
+		unmarshaledData.MsgName = msgIdName
+
+		switch msgIdName {
+		case "TASK_START":
+			var msgData proto.TaskStart
+			err := gProto.Unmarshal(data, &msgData)
+			if err != nil {
+				fmt.Println("解析错误:", err)
+				continue
+			}
+			unmarshaledData.Data = &msgData
+
+		case "TASK_STOP":
+			var msgData proto.TaskStop
+			err := gProto.Unmarshal(data, &msgData)
+			if err != nil {
+				fmt.Println("解析错误:", err)
+				continue
+			}
+			unmarshaledData.Data = &msgData
+
+		case "DEVICE_LOGIN":
+			var msgData proto.DeviceLogin
+			err := gProto.Unmarshal(data, &msgData)
+			if err != nil {
+				fmt.Println("解析错误:", err)
+				continue
+			}
+			unmarshaledData.Data = &msgData
+
+		default:
+			fmt.Println("未知的消息类型:", msgIdName)
+			continue
+		}
+
+		jsonBytes, err := json.Marshal(unmarshaledData)
+		if err != nil {
+			fmt.Println("转换为 JSON 时发生错误:", err)
+			continue
+		}
+
+		jsonString := string(jsonBytes)
+
 		for client := range clients {
-			err := client.WriteMessage(websocket.TextMessage, payload)
+			fmt.Println("websocket.TextMessage: ", jsonString)
+			err := client.WriteMessage(websocket.TextMessage, []byte(jsonString))
 			if err != nil {
 				log.Printf("error: %v", err)
 				client.Close()
@@ -123,10 +197,11 @@ func handleMessages() {
 }
 
 // 封装的 MQTT 连接和订阅函数
-func subscribeToMQTTTopic(broker, clientID, thingSecret, topic string) {
+func subscribeToMQTTTopic(broker, thingSecret, topic string) {
+	clientID := thingSecret + "_" + generateClientID()
 	opts := mqtt.NewClientOptions().
 		AddBroker(fmt.Sprintf("tcp://%s:1883", broker)).
-		SetClientID(fmt.Sprintf("%s_%s", clientID, topic)).
+		SetClientID(clientID).
 		SetUsername(thingSecret).
 		SetPassword(thingSecret).
 		SetAutoReconnect(true).
@@ -243,7 +318,6 @@ func savePbMsg(message []byte) {
 
 		// 将字节切片转换为字符串
 		jsonString := string(jsonBytes)
-		fmt.Println("JSON 字符串:", jsonString)
 
 		// 检查 pbMsgs 中是否已经存在相同的 jsonString或者是否有相同的deviceName，如果有就用新的替换旧的
 		exists := false
@@ -328,16 +402,11 @@ func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Println("dataBuf: ", item.DeviceName)
-		fmt.Println("TenantId: ", item.TenantId)
-
 		// 创建protobuf消息
 		pbMsg := &proto.PbMsg{
 			Id:   380,
 			Data: dataBuf,
 		}
-
-		fmt.Println("pbMsg: ", pbMsg.Id)
 
 		// 序列化protobuf消息
 		buf, err := gProto.Marshal(pbMsg)
@@ -383,17 +452,6 @@ func sendUDP(data []byte) {
 	}
 
 	fmt.Println("UDP message sent")
-}
-
-// 生成mqtt clientID字符串
-func generateClientID() string {
-	const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	clientID := make([]byte, 10)
-	for i := range clientID {
-		num, _ := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
-		clientID[i] = charset[num.Int64()]
-	}
-	return string(clientID)
 }
 
 // 给设备发送指令
@@ -497,6 +555,11 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 			Uuid:     params.Uuid,
 		}
 		pbMsgId = 233
+	case "deviceInfo":
+		reqData = &proto.DeviceInfoGet{
+			Username: params.Username,
+		}
+		pbMsgId = 233
 	default:
 		http.Error(w, "Invalid control type", http.StatusBadRequest)
 		return
@@ -528,11 +591,12 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+
 	type ControlDevcieResponse struct {
 		Message string `json:"message"`
 	}
-	// 返回成功响应
-	w.WriteHeader(http.StatusOK)
 	// 创建响应数据
 	response := ControlDevcieResponse{
 		Message: "Message sent to topic: " + topic,
@@ -716,6 +780,7 @@ type TaskRequest struct {
 	Task  proto.Task `json:"task"`
 }
 
+// 日程响应结构体
 type TaskResponse struct {
 	Message string      `json:"message"`
 	Task    *proto.Task `json:"task"`
