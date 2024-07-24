@@ -126,52 +126,68 @@ func handleMessages() {
 		MsgName string      `json:"msgName"`
 	}
 
+	// 定义一个解析函数类型
+	type msgParser func([]byte, interface{}) error
+
+	// 映射消息ID到解析函数
+	msgParsers := map[string]msgParser{
+		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
+		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
+		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
+		"DEVICE_LOGIN":          func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
+		"DEVICE_INFO_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
+		"TASK_SYNC_STATUS_GET":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
+		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
+		},
+	}
+
 	for payload := range broadcast {
 		fmt.Printf("Received payload: %s\n", string(payload))
 
 		var receivedMsg proto.PbMsg
-		// 使用 gProto.Unmarshal 解析数据到消息实例
 		err := gProto.Unmarshal(payload, &receivedMsg)
 		if err != nil {
 			fmt.Println("解析错误:", err)
 			continue
 		}
 
-		var msgIdName string = proto.MsgId_name[int32(receivedMsg.Id)]
-		var data []byte = receivedMsg.Data
+		msgIdName := proto.MsgId_name[int32(receivedMsg.Id)]
+		data := receivedMsg.Data
 
-		var unmarshaledData PayloadData
-		unmarshaledData.MsgName = msgIdName
+		unmarshaledData := PayloadData{MsgName: msgIdName}
 
-		switch msgIdName {
-		case "TASK_START":
-			var msgData proto.TaskStart
-			err := gProto.Unmarshal(data, &msgData)
+		// 使用映射解析消息
+		if parser, exists := msgParsers[msgIdName]; exists {
+			// 为每种消息类型创建具体的变量
+			var msgData interface{}
+			switch msgIdName {
+			case "TASK_START":
+				msgData = &proto.TaskStart{}
+			case "TASK_STOP":
+				msgData = &proto.TaskStop{}
+			case "TASK_STATUS_GET":
+				msgData = &proto.TaskStatusGet{}
+			case "DEVICE_LOGIN":
+				msgData = &proto.DeviceLogin{}
+			case "DEVICE_INFO_GET_REPLY":
+				msgData = &proto.DeviceInfoGetReply{}
+			case "TASK_SYNC_STATUS_GET":
+				msgData = &proto.TaskSyncStatusGet{}
+			case "TASK_SYNC_STATUS_GET_REPLY":
+				msgData = &proto.TaskSyncStatusGetReply{}
+			default:
+				fmt.Println("未知的消息类型:", msgIdName)
+				continue
+			}
+
+			err := parser(data, msgData)
 			if err != nil {
 				fmt.Println("解析错误:", err)
 				continue
 			}
-			unmarshaledData.Data = &msgData
-
-		case "TASK_STOP":
-			var msgData proto.TaskStop
-			err := gProto.Unmarshal(data, &msgData)
-			if err != nil {
-				fmt.Println("解析错误:", err)
-				continue
-			}
-			unmarshaledData.Data = &msgData
-
-		case "DEVICE_LOGIN":
-			var msgData proto.DeviceLogin
-			err := gProto.Unmarshal(data, &msgData)
-			if err != nil {
-				fmt.Println("解析错误:", err)
-				continue
-			}
-			unmarshaledData.Data = &msgData
-
-		default:
+			unmarshaledData.Data = msgData
+		} else {
 			fmt.Println("未知的消息类型:", msgIdName)
 			continue
 		}
@@ -454,6 +470,52 @@ func sendUDP(data []byte) {
 	fmt.Println("UDP message sent")
 }
 
+// 创建请求数据
+func createRequestData(params *struct {
+	ControlType string
+	Username    string
+	Task        *proto.Task // 修改为指针类型
+	Uuid        string
+	ComID       string
+}) (gProto.Message, proto.MsgId, error) {
+	var reqData gProto.Message
+	var pbMsgId proto.MsgId
+
+	switch params.ControlType {
+	case "reboot":
+		reqData = &proto.DeviceReboot{Username: "platform" + params.ComID}
+		pbMsgId = 359
+	case "add", "copy":
+		reqData = &proto.TaskAdd{Username: params.Username, Task: params.Task} // 直接使用指针
+		pbMsgId = 237
+	case "edit":
+		reqData = &proto.TaskEdit{Username: params.Username, Task: params.Task} // 直接使用指针
+		pbMsgId = 239
+	case "delete":
+		reqData = &proto.TaskDelete{Username: params.Username, Uuid: params.Uuid}
+		pbMsgId = 241
+	case "play":
+		reqData = &proto.TaskStart{Username: params.Username, Task: params.Task} // 直接使用指针
+		pbMsgId = 231
+	case "stop":
+		reqData = &proto.TaskStop{Username: params.Username, Uuid: params.Uuid}
+		pbMsgId = 233
+	case "taskStatGet":
+		reqData = &proto.TaskStatusGet{Username: params.Username}
+		pbMsgId = 314
+	case "deviceInfo":
+		reqData = &proto.DeviceInfoGet{Username: params.Username}
+		pbMsgId = 233
+	case "taskSyncStatusGet":
+		reqData = &proto.TaskSyncStatusGet{Username: params.Username, TaskUuid: params.Uuid}
+		pbMsgId = 333
+	default:
+		return nil, 0, fmt.Errorf("invalid control type: %s", params.ControlType)
+	}
+
+	return reqData, pbMsgId, nil
+}
+
 // 给设备发送指令
 func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	// 设置 CORS 头
@@ -471,14 +533,14 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 这里可以添加处理 POST 请求的逻辑
 	var params struct {
-		ChannelID     string     `json:"channelID"`
-		ThingIdentity string     `json:"thingIdentity"`
-		Host          string     `json:"host"`
-		ComID         string     `json:"comID"`
-		ControlType   string     `json:"controlType"`
-		Uuid          string     `json:"uuid"`
-		Task          proto.Task `json:"task"`
-		Username      string     `json:"username"`
+		ChannelID     string      `json:"channelID"`
+		ThingIdentity string      `json:"thingIdentity"`
+		Host          string      `json:"host"`
+		ComID         string      `json:"comID"`
+		ControlType   string      `json:"controlType"`
+		Uuid          string      `json:"uuid"`
+		Task          *proto.Task `json:"task"`
+		Username      string      `json:"username"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -521,56 +583,24 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	defer client.Disconnect(200)
 
-	var reqData gProto.Message
-	var pbMsgId proto.MsgId
-	switch params.ControlType {
-	case "reboot":
-		reqData = &proto.DeviceReboot{
-			Username: "platform" + params.ComID,
-		}
-		pbMsgId = 359
-	case "add", "copy":
-		reqData = &proto.TaskAdd{
-			Username: params.Username,
-			Task:     &params.Task,
-		}
-		pbMsgId = 237
-	case "edit":
-		reqData = &proto.TaskEdit{
-			Username: params.Username,
-			Task:     &params.Task,
-		}
-		pbMsgId = 239
-	case "delete":
-		reqData = &proto.TaskDelete{
-			Username: params.Username,
-			Uuid:     params.Uuid,
-		}
-		pbMsgId = 241
-	case "play":
-		reqData = &proto.TaskStart{
-			Username: params.Username,
-			Task:     &params.Task,
-		}
-		pbMsgId = 231
-	case "stop":
-		reqData = &proto.TaskStop{
-			Username: params.Username,
-			Uuid:     params.Uuid,
-		}
-		pbMsgId = 233
-	case "taskStatGet":
-		reqData = &proto.TaskStatusGet{
-			Username: params.Username,
-		}
-		pbMsgId = 314
-	case "deviceInfo":
-		reqData = &proto.DeviceInfoGet{
-			Username: params.Username,
-		}
-		pbMsgId = 233
-	default:
-		http.Error(w, "Invalid control type", http.StatusBadRequest)
+	// 创建一个新的结构体，传递所需字段
+	reqParams := &struct {
+		ControlType string
+		Username    string
+		Task        *proto.Task // 修改为指针类型
+		Uuid        string
+		ComID       string
+	}{
+		ControlType: params.ControlType,
+		Username:    params.Username,
+		Task:        params.Task, // 直接使用指针
+		Uuid:        params.Uuid,
+		ComID:       params.ComID,
+	}
+	// 创建请求数据
+	reqData, pbMsgId, err := createRequestData(reqParams)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -580,10 +610,13 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Failed to marshal protobuf", http.StatusInternalServerError)
 		return
 	}
+
+	uuid := uuid.New().String()
 	// 创建protobuf消息
 	pbMsg := &proto.PbMsg{
-		Id:   pbMsgId,
-		Data: dataBuf,
+		Id:     pbMsgId,
+		Data:   dataBuf,
+		Source: "Web_" + uuid,
 	}
 	// 序列化protobuf消息
 	buf, err := gProto.Marshal(pbMsg)
