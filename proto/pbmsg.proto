@@ -119,8 +119,8 @@ enum MsgId {
 	TASK_SYNC = 312;
 	TASK_SYNC_REPLY = 313;
 
-	TASK_STAT_GET = 314;
-	TASK_STAT_GET_REPLY = 315;
+	TASK_STATUS_GET = 314;
+	TASK_STATUS_GET_REPLY = 315;
 
 	SUBSCRIBE_PUBLISH = 316;
 	SUBSCRIBE_PUBLISH_REPLY = 317;
@@ -1564,11 +1564,11 @@ message TaskSyncStatusGetReply {
 }
 
 // 用于上云的时候APP请求设备任务状态
-message TaskStatGet {
+message TaskStatusGet {
 	string username = 1;
 }
 
-message TaskStatGetReply {
+message TaskStatusGetReply {
 	Status status = 1;
 }
 

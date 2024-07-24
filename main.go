@@ -494,6 +494,10 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 构建 MQTT 主题
 	topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)
+	if params.ControlType == "taskStatGet" {
+		// 获取任务状态
+		topic = fmt.Sprintf("channels/%s/messages/common/device", params.ChannelID)
+	}
 	nameAndPass := "platform" + params.ComID
 	// 生成随机字符串作为 MQTT 客户端 ID
 	clientID := nameAndPass + "_" + generateClientID()
@@ -555,6 +559,11 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 			Uuid:     params.Uuid,
 		}
 		pbMsgId = 233
+	case "taskStatGet":
+		reqData = &proto.TaskStatusGet{
+			Username: params.Username,
+		}
+		pbMsgId = 314
 	case "deviceInfo":
 		reqData = &proto.DeviceInfoGet{
 			Username: params.Username,
