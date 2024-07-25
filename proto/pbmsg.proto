@@ -680,6 +680,12 @@ message DeviceFeatureList {
 	// 是否支持mqtt
 	bool has_mqtt = 28;
 	bool mqtt_enable = 29;
+	// 是否有u段模块
+	bool has_u_module = 30;
+	bool u_module_enable = 31;
+	// 音箱自检
+	bool has_speaker_selftest = 32;
+	bool speaker_selftest_enable = 33;
 }
 
 message SpeakerVolume {
@@ -1563,7 +1569,6 @@ message TaskSyncStatusGetReply {
 	string comment = 2;
 }
 
-// 用于上云的时候APP请求设备任务状态
 message TaskStatusGet {
 	string username = 1;
 }
