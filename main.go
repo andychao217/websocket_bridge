@@ -100,12 +100,12 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 			delete(clients, ws)
 			break
 		}
-		handleMessage(message)
+		handleWebsocketMessage(message)
 	}
 }
 
 // 处理 WebSocket 消息
-func handleMessage(message []byte) {
+func handleWebsocketMessage(message []byte) {
 	var msg WebSocketMessage
 	if err := json.Unmarshal(message, &msg); err != nil {
 		log.Printf("Error parsing JSON: %v", err)
@@ -136,6 +136,7 @@ func handleMessages() {
 		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
 		"DEVICE_LOGIN":          func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
 		"DEVICE_INFO_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
+		"DEVICE_INFO_UPDATE":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
 		"TASK_SYNC_STATUS_GET":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
 		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
@@ -172,6 +173,8 @@ func handleMessages() {
 				msgData = &proto.DeviceLogin{}
 			case "DEVICE_INFO_GET_REPLY":
 				msgData = &proto.DeviceInfoGetReply{}
+			case "DEVICE_INFO_UPDATE":
+				msgData = &proto.DeviceInfoUpdate{}
 			case "TASK_SYNC_STATUS_GET":
 				msgData = &proto.TaskSyncStatusGet{}
 			case "TASK_SYNC_STATUS_GET_REPLY":
@@ -487,13 +490,13 @@ func createRequestData(params *struct {
 		pbMsgId = 359
 	case "add", "copy":
 		reqData = &proto.TaskAdd{Username: params.Username, Task: params.Task} // 直接使用指针
-		pbMsgId = 237
+		pbMsgId = 312
 	case "edit":
 		reqData = &proto.TaskEdit{Username: params.Username, Task: params.Task} // 直接使用指针
-		pbMsgId = 239
+		pbMsgId = 312
 	case "delete":
 		reqData = &proto.TaskDelete{Username: params.Username, Uuid: params.Uuid}
-		pbMsgId = 241
+		pbMsgId = 312
 	case "play":
 		reqData = &proto.TaskStart{Username: params.Username, Task: params.Task} // 直接使用指针
 		pbMsgId = 231
@@ -503,12 +506,12 @@ func createRequestData(params *struct {
 	case "taskStatGet":
 		reqData = &proto.TaskStatusGet{Username: params.Username}
 		pbMsgId = 314
-	case "deviceInfo":
-		reqData = &proto.DeviceInfoGet{Username: params.Username}
-		pbMsgId = 233
 	case "taskSyncStatusGet":
 		reqData = &proto.TaskSyncStatusGet{Username: params.Username, TaskUuid: params.Uuid}
 		pbMsgId = 333
+	case "deviceInfoGet":
+		reqData = &proto.DeviceInfoGet{Username: params.Username}
+		pbMsgId = 229
 	default:
 		return nil, 0, fmt.Errorf("invalid control type: %s", params.ControlType)
 	}
@@ -611,12 +614,11 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	uuid := uuid.New().String()
 	// 创建protobuf消息
 	pbMsg := &proto.PbMsg{
 		Id:     pbMsgId,
 		Data:   dataBuf,
-		Source: "Web_" + uuid,
+		Source: "web_" + params.ComID,
 	}
 	// 序列化protobuf消息
 	buf, err := gProto.Marshal(pbMsg)
