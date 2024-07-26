@@ -169,16 +169,16 @@ func handleMessages() {
 				msgData = &proto.TaskStop{}
 			case "TASK_STATUS_GET":
 				msgData = &proto.TaskStatusGet{}
+			case "TASK_SYNC_STATUS_GET":
+				msgData = &proto.TaskSyncStatusGet{}
+			case "TASK_SYNC_STATUS_GET_REPLY":
+				msgData = &proto.TaskSyncStatusGetReply{}
 			case "DEVICE_LOGIN":
 				msgData = &proto.DeviceLogin{}
 			case "DEVICE_INFO_GET_REPLY":
 				msgData = &proto.DeviceInfoGetReply{}
 			case "DEVICE_INFO_UPDATE":
 				msgData = &proto.DeviceInfoUpdate{}
-			case "TASK_SYNC_STATUS_GET":
-				msgData = &proto.TaskSyncStatusGet{}
-			case "TASK_SYNC_STATUS_GET_REPLY":
-				msgData = &proto.TaskSyncStatusGetReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -485,22 +485,21 @@ func createRequestData(params *struct {
 	var pbMsgId proto.MsgId
 
 	switch params.ControlType {
-	case "reboot":
-		reqData = &proto.DeviceReboot{Username: "platform" + params.ComID}
-		pbMsgId = 359
-	case "add", "copy":
-		reqData = &proto.TaskAdd{Username: params.Username, Task: params.Task} // 直接使用指针
+	case "taskAdd", "taskEdit", "taskDelete":
+		var taskSyncType proto.TaskSyncType
+		if params.ControlType == "taskAdd" {
+			taskSyncType = 0
+		} else if params.ControlType == "taskEdit" {
+			taskSyncType = 2
+		} else if params.ControlType == "taskDelete" {
+			taskSyncType = 1
+		}
+		reqData = &proto.TaskSync{Username: params.Username, Type: taskSyncType, TaskUuid: params.Uuid} // 直接使用指针
 		pbMsgId = 312
-	case "edit":
-		reqData = &proto.TaskEdit{Username: params.Username, Task: params.Task} // 直接使用指针
-		pbMsgId = 312
-	case "delete":
-		reqData = &proto.TaskDelete{Username: params.Username, Uuid: params.Uuid}
-		pbMsgId = 312
-	case "play":
+	case "taskStart":
 		reqData = &proto.TaskStart{Username: params.Username, Task: params.Task} // 直接使用指针
 		pbMsgId = 231
-	case "stop":
+	case "taskStop":
 		reqData = &proto.TaskStop{Username: params.Username, Uuid: params.Uuid}
 		pbMsgId = 233
 	case "taskStatGet":
@@ -509,6 +508,9 @@ func createRequestData(params *struct {
 	case "taskSyncStatusGet":
 		reqData = &proto.TaskSyncStatusGet{Username: params.Username, TaskUuid: params.Uuid}
 		pbMsgId = 333
+	case "deviceReboot":
+		reqData = &proto.DeviceReboot{Username: "platform" + params.ComID}
+		pbMsgId = 359
 	case "deviceInfoGet":
 		reqData = &proto.DeviceInfoGet{Username: params.Username}
 		pbMsgId = 229
