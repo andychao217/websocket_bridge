@@ -131,12 +131,13 @@ func handleMessages() {
 
 	// 映射消息ID到解析函数
 	msgParsers := map[string]msgParser{
-		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
-		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
-		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
 		"DEVICE_LOGIN":          func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
 		"DEVICE_INFO_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
 		"DEVICE_INFO_UPDATE":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
+		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
+		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
+		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
+		"TASK_STATUS_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGetReply)) },
 		"TASK_SYNC_STATUS_GET":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
 		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
@@ -163,22 +164,24 @@ func handleMessages() {
 			// 为每种消息类型创建具体的变量
 			var msgData interface{}
 			switch msgIdName {
-			case "TASK_START":
-				msgData = &proto.TaskStart{}
-			case "TASK_STOP":
-				msgData = &proto.TaskStop{}
-			case "TASK_STATUS_GET":
-				msgData = &proto.TaskStatusGet{}
-			case "TASK_SYNC_STATUS_GET":
-				msgData = &proto.TaskSyncStatusGet{}
-			case "TASK_SYNC_STATUS_GET_REPLY":
-				msgData = &proto.TaskSyncStatusGetReply{}
 			case "DEVICE_LOGIN":
 				msgData = &proto.DeviceLogin{}
 			case "DEVICE_INFO_GET_REPLY":
 				msgData = &proto.DeviceInfoGetReply{}
 			case "DEVICE_INFO_UPDATE":
 				msgData = &proto.DeviceInfoUpdate{}
+			case "TASK_START":
+				msgData = &proto.TaskStart{}
+			case "TASK_STOP":
+				msgData = &proto.TaskStop{}
+			case "TASK_STATUS_GET":
+				msgData = &proto.TaskStatusGet{}
+			case "TASK_STATUS_GET_REPLY":
+				msgData = &proto.TaskStatusGetReply{}
+			case "TASK_SYNC_STATUS_GET":
+				msgData = &proto.TaskSyncStatusGet{}
+			case "TASK_SYNC_STATUS_GET_REPLY":
+				msgData = &proto.TaskSyncStatusGetReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
