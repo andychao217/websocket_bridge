@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"crypto/rand"
 	"encoding/json"
@@ -1127,6 +1128,55 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+type gzipResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+	gzipWriter *gzip.Writer
+}
+
+func (g *gzipResponseWriter) WriteHeader(statusCode int) {
+	// 设置 Gzip 响应头
+	g.ResponseWriter.Header().Set("Content-Encoding", "gzip")
+	g.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (g *gzipResponseWriter) Write(b []byte) (int, error) {
+	// 写入 Gzip 压缩数据
+	if g.gzipWriter != nil {
+		return g.gzipWriter.Write(b)
+	}
+	return g.ResponseWriter.Write(b)
+}
+
+func gzipMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// 检查是否为 WebSocket 握手请求
+		if r.Header.Get("Upgrade") == "websocket" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// 检查客户端是否支持 Gzip
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		// 创建 Gzip Writer
+		gz := gzip.NewWriter(w)
+		defer gz.Close()
+
+		// 使用自定义的 ResponseWriter
+		gw := &gzipResponseWriter{
+			Writer:         gz,
+			ResponseWriter: w,
+			gzipWriter:     gz,
+		}
+
+		next.ServeHTTP(gw, r)
+	})
+}
+
 func main() {
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
@@ -1154,7 +1204,7 @@ func main() {
 
 	// 启动 HTTP 服务器，监听端口 63001`
 	log.Println("HTTP server started on :" + port)
-	err := http.ListenAndServe(":"+port, nil)
+	err := http.ListenAndServe(":"+port, gzipMiddleware(http.DefaultServeMux))
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
