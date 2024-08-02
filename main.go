@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"compress/flate"
 	"compress/gzip"
 	"context"
 	"crypto/rand"
@@ -1148,7 +1149,16 @@ func (g *gzipResponseWriter) Write(b []byte) (int, error) {
 	return g.ResponseWriter.Write(b)
 }
 
-func gzipMiddleware(next http.Handler) http.Handler {
+type deflateResponseWriter struct {
+	io.Writer
+	http.ResponseWriter
+}
+
+func (d *deflateResponseWriter) Write(b []byte) (int, error) {
+	return d.Writer.Write(b)
+}
+
+func CompressionMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// 检查是否为 WebSocket 握手请求
 		if r.Header.Get("Upgrade") == "websocket" {
@@ -1156,24 +1166,39 @@ func gzipMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// 检查客户端是否支持 Gzip
-		if !strings.Contains(r.Header.Get("Accept-Encoding"), "gzip") {
+		// 检查请求头中支持的编码
+		acceptEncoding := r.Header.Get("Accept-Encoding")
+		if strings.Contains(acceptEncoding, "gzip") {
+			// 使用 Gzip 压缩
+			w.Header().Set("Content-Encoding", "gzip")
+			gz := gzip.NewWriter(w)
+			defer gz.Close()
+			gw := &gzipResponseWriter{
+				Writer:         gz,
+				ResponseWriter: w,
+				gzipWriter:     gz,
+			}
+			next.ServeHTTP(gw, r)
+		} else if strings.Contains(acceptEncoding, "deflate") {
+			// 使用 Deflate 压缩
+			var buf bytes.Buffer
+			writer, err := flate.NewWriter(&buf, flate.BestCompression)
+			if err != nil {
+				http.Error(w, "Failed to create flate writer", http.StatusInternalServerError)
+				return
+			}
+			defer writer.Close()
+
+			w.Header().Set("Content-Encoding", "deflate")
+			dw := &deflateResponseWriter{Writer: writer, ResponseWriter: w}
+			next.ServeHTTP(dw, r)
+
+			writer.Close()
+			w.Write(buf.Bytes())
+		} else {
+			// 不支持压缩，直接处理请求
 			next.ServeHTTP(w, r)
-			return
 		}
-
-		// 创建 Gzip Writer
-		gz := gzip.NewWriter(w)
-		defer gz.Close()
-
-		// 使用自定义的 ResponseWriter
-		gw := &gzipResponseWriter{
-			Writer:         gz,
-			ResponseWriter: w,
-			gzipWriter:     gz,
-		}
-
-		next.ServeHTTP(gw, r)
 	})
 }
 
@@ -1204,7 +1229,7 @@ func main() {
 
 	// 启动 HTTP 服务器，监听端口 63001`
 	log.Println("HTTP server started on :" + port)
-	err := http.ListenAndServe(":"+port, gzipMiddleware(http.DefaultServeMux))
+	err := http.ListenAndServe(":"+port, CompressionMiddleware(http.DefaultServeMux))
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
