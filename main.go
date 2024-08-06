@@ -67,9 +67,9 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 	messageHistory.RUnlock()
 
 	if exists && time.Since(timestamp) < 2*time.Second {
-		fmt.Printf("Duplicate message received on topic %s: %s\n", msg.Topic(), msg.Payload())
+		// fmt.Printf("Duplicate message received on topic %s: %s\n", msg.Topic(), msg.Payload())
 	} else {
-		fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), msg.Payload())
+		// fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), msg.Payload())
 		messageHistory.Lock()
 		messageHistory.m[msg.Topic()+string(msg.Payload())] = time.Now()
 		messageHistory.Unlock()
@@ -147,8 +147,6 @@ func handleMessages() {
 	}
 
 	for payload := range broadcast {
-		fmt.Printf("Received payload: %s\n", string(payload))
-
 		var receivedMsg proto.PbMsg
 		err := gProto.Unmarshal(payload, &receivedMsg)
 		if err != nil {
@@ -209,7 +207,7 @@ func handleMessages() {
 		jsonString := string(jsonBytes)
 
 		for client := range clients {
-			fmt.Println("websocket.TextMessage: ", jsonString)
+			// fmt.Println("websocket.TextMessage: ", jsonString)
 			err := client.WriteMessage(websocket.TextMessage, []byte(jsonString))
 			if err != nil {
 				log.Printf("error: %v", err)
@@ -442,8 +440,6 @@ func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
 		// 发送UDP数据
 		sendUDP(buf)
 	}
-
-	fmt.Fprintf(w, "Data sent via UDP")
 }
 
 // 发送UDP信息
@@ -474,8 +470,6 @@ func sendUDP(data []byte) {
 		fmt.Println("Write data failed:", err)
 		return
 	}
-
-	fmt.Println("UDP message sent")
 }
 
 // 创建请求数据
@@ -559,10 +553,10 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("ChannelID: %v\n", params.ChannelID)
-	fmt.Printf("ThingIdentity: %v\n", params.ThingIdentity)
-	fmt.Printf("Host: %v\n", params.Host)
-	fmt.Printf("ComID: %v\n", params.ComID)
+	// fmt.Printf("ChannelID: %v\n", params.ChannelID)
+	// fmt.Printf("ThingIdentity: %v\n", params.ThingIdentity)
+	// fmt.Printf("Host: %v\n", params.Host)
+	// fmt.Printf("ComID: %v\n", params.ComID)
 
 	// 构建 MQTT 主题
 	topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)
@@ -574,7 +568,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	// 生成随机字符串作为 MQTT 客户端 ID
 	clientID := nameAndPass + "_" + generateClientID()
 
-	fmt.Println("clientID 123: ", clientID)
+	// fmt.Println("clientID 123: ", clientID)
 
 	// MQTT 配置
 	opts := mqtt.NewClientOptions().
@@ -729,7 +723,7 @@ func initMinio() {
 	if err != nil {
 		exists, errBucketExists := minioClient.BucketExists(context.Background(), bucketName)
 		if errBucketExists == nil && exists {
-			fmt.Printf("We already own %s\n", bucketName)
+			// fmt.Printf("We already own %s\n", bucketName)
 		} else {
 			log.Fatalln(err)
 		}
