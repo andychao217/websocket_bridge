@@ -133,9 +133,6 @@ func handleMessages() {
 
 	// 映射消息ID到解析函数
 	msgParsers := map[string]msgParser{
-		"DEVICE_LOGIN":          func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
-		"DEVICE_INFO_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
-		"DEVICE_INFO_UPDATE":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
 		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
 		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
 		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
@@ -144,6 +141,13 @@ func handleMessages() {
 		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
 		},
+		"GET_LOG_REPLY":           func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.GetLogReply)) },
+		"DEVICE_LOGIN":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
+		"DEVICE_INFO_GET_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
+		"DEVICE_INFO_UPDATE":      func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
+		"DEVICE_RESTORE_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceRestoreReply)) },
+		"DEVICE_ALIASE_SET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceAliaseSetReply)) },
+		"OUT_CHANNEL_EDIT_REPLY":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.OutChannelEditReply)) },
 	}
 
 	for payload := range broadcast {
@@ -164,12 +168,6 @@ func handleMessages() {
 			// 为每种消息类型创建具体的变量
 			var msgData interface{}
 			switch msgIdName {
-			case "DEVICE_LOGIN":
-				msgData = &proto.DeviceLogin{}
-			case "DEVICE_INFO_GET_REPLY":
-				msgData = &proto.DeviceInfoGetReply{}
-			case "DEVICE_INFO_UPDATE":
-				msgData = &proto.DeviceInfoUpdate{}
 			case "TASK_START":
 				msgData = &proto.TaskStart{}
 			case "TASK_STOP":
@@ -182,6 +180,20 @@ func handleMessages() {
 				msgData = &proto.TaskSyncStatusGet{}
 			case "TASK_SYNC_STATUS_GET_REPLY":
 				msgData = &proto.TaskSyncStatusGetReply{}
+			case "GET_LOG_REPLY":
+				msgData = &proto.GetLogReply{}
+			case "DEVICE_LOGIN":
+				msgData = &proto.DeviceLogin{}
+			case "DEVICE_INFO_GET_REPLY":
+				msgData = &proto.DeviceInfoGetReply{}
+			case "DEVICE_INFO_UPDATE":
+				msgData = &proto.DeviceInfoUpdate{}
+			case "DEVICE_RESTORE_REPLY":
+				msgData = &proto.DeviceRestoreReply{}
+			case "DEVICE_ALIASE_SET_REPLY":
+				msgData = &proto.DeviceAliaseSetReply{}
+			case "OUT_CHANNEL_EDIT_REPLY":
+				msgData = &proto.OutChannelEditReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -479,6 +491,8 @@ func createRequestData(params *struct {
 	Task        *proto.Task // 修改为指针类型
 	Uuid        string
 	ComID       string
+	DeviceInfo  *proto.DeviceInfo
+	ChannelAttr *proto.ChannelAttr
 }) (gProto.Message, proto.MsgId, error) {
 	var reqData gProto.Message
 	var pbMsgId proto.MsgId
@@ -513,6 +527,21 @@ func createRequestData(params *struct {
 	case "deviceInfoGet":
 		reqData = &proto.DeviceInfoGet{Username: params.Username}
 		pbMsgId = 229
+	case "deviceInfoSet":
+		reqData = &proto.DeviceInfoSet{Username: params.Username, Info: params.DeviceInfo}
+		pbMsgId = 302
+	case "deviceAliaseSet":
+		reqData = &proto.DeviceAliaseSet{Username: params.Username, DeviceAliase: params.DeviceInfo.DeviceAliase}
+		pbMsgId = 331
+	case "deviceOutChannelEdit":
+		reqData = &proto.OutChannelEdit{Username: params.Username, Attr: params.ChannelAttr}
+		pbMsgId = 265
+	case "deviceRestore":
+		reqData = &proto.DeviceRestore{Username: params.Username}
+		pbMsgId = 304
+	case "deviceLogGet":
+		reqData = &proto.GetLog{Username: params.Username, Type: 0}
+		pbMsgId = 247
 	default:
 		return nil, 0, fmt.Errorf("invalid control type: %s", params.ControlType)
 	}
@@ -537,14 +566,16 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 这里可以添加处理 POST 请求的逻辑
 	var params struct {
-		ChannelID     string      `json:"channelID"`
-		ThingIdentity string      `json:"thingIdentity"`
-		Host          string      `json:"host"`
-		ComID         string      `json:"comID"`
-		ControlType   string      `json:"controlType"`
-		Uuid          string      `json:"uuid"`
-		Task          *proto.Task `json:"task"`
-		Username      string      `json:"username"`
+		ChannelID     string             `json:"channelID"`
+		ThingIdentity string             `json:"thingIdentity"`
+		Host          string             `json:"host"`
+		ComID         string             `json:"comID"`
+		ControlType   string             `json:"controlType"`
+		Uuid          string             `json:"uuid"`
+		Task          *proto.Task        `json:"task"`
+		Username      string             `json:"username"`
+		DeviceInfo    *proto.DeviceInfo  `json:"deviceInfo"`
+		ChannelAttr   *proto.ChannelAttr `json:"channelAttr"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -594,12 +625,16 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		Task        *proto.Task // 修改为指针类型
 		Uuid        string
 		ComID       string
+		DeviceInfo  *proto.DeviceInfo
+		ChannelAttr *proto.ChannelAttr
 	}{
 		ControlType: params.ControlType,
 		Username:    params.Username,
 		Task:        params.Task, // 直接使用指针
 		Uuid:        params.Uuid,
 		ComID:       params.ComID,
+		DeviceInfo:  params.DeviceInfo,
+		ChannelAttr: params.ChannelAttr,
 	}
 	// 创建请求数据
 	reqData, pbMsgId, err := createRequestData(reqParams)
