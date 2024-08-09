@@ -147,7 +147,10 @@ func handleMessages() {
 		"DEVICE_INFO_UPDATE":      func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
 		"DEVICE_RESTORE_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceRestoreReply)) },
 		"DEVICE_ALIASE_SET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceAliaseSetReply)) },
+		"LED_CFG_SET_REPLY":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.LedCfgSetReply)) },
+		"STEREO_CFG_SET_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.StereoCfgSetReply)) },
 		"OUT_CHANNEL_EDIT_REPLY":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.OutChannelEditReply)) },
+		"IN_CHANNEL_EDIT_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.InChannelEditReply)) },
 	}
 
 	for payload := range broadcast {
@@ -194,6 +197,12 @@ func handleMessages() {
 				msgData = &proto.DeviceAliaseSetReply{}
 			case "OUT_CHANNEL_EDIT_REPLY":
 				msgData = &proto.OutChannelEditReply{}
+			case "IN_CHANNEL_EDIT_REPLY":
+				msgData = &proto.InChannelEditReply{}
+			case "LED_CFG_SET_REPLY":
+				msgData = &proto.LedCfgSetReply{}
+			case "STEREO_CFG_SET_REPLY":
+				msgData = &proto.StereoCfgSetReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -493,6 +502,7 @@ func createRequestData(params *struct {
 	ComID       string
 	DeviceInfo  *proto.DeviceInfo
 	ChannelAttr *proto.ChannelAttr
+	Enabled     bool
 }) (gProto.Message, proto.MsgId, error) {
 	var reqData gProto.Message
 	var pbMsgId proto.MsgId
@@ -536,9 +546,18 @@ func createRequestData(params *struct {
 	case "deviceOutChannelEdit":
 		reqData = &proto.OutChannelEdit{Username: params.Username, Attr: params.ChannelAttr}
 		pbMsgId = 265
+	case "deviceInChannelEdit":
+		reqData = &proto.InChannelEdit{Username: params.Username, Attr: params.ChannelAttr}
+		pbMsgId = 269
 	case "deviceRestore":
 		reqData = &proto.DeviceRestore{Username: params.Username}
 		pbMsgId = 304
+	case "deviceLEDSet":
+		reqData = &proto.LedCfgSet{Username: params.Username, LedEnable: params.Enabled}
+		pbMsgId = 336
+	case "deviceStereoSet":
+		reqData = &proto.StereoCfgSet{Username: params.Username, StereoEnable: params.Enabled}
+		pbMsgId = 329
 	case "deviceLogGet":
 		reqData = &proto.GetLog{Username: params.Username, Type: 0}
 		pbMsgId = 247
@@ -576,6 +595,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		Username      string             `json:"username"`
 		DeviceInfo    *proto.DeviceInfo  `json:"deviceInfo"`
 		ChannelAttr   *proto.ChannelAttr `json:"channelAttr"`
+		Enabled       bool               `json:"enabled"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -627,6 +647,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		ComID       string
 		DeviceInfo  *proto.DeviceInfo
 		ChannelAttr *proto.ChannelAttr
+		Enabled     bool
 	}{
 		ControlType: params.ControlType,
 		Username:    params.Username,
@@ -635,6 +656,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		ComID:       params.ComID,
 		DeviceInfo:  params.DeviceInfo,
 		ChannelAttr: params.ChannelAttr,
+		Enabled:     params.Enabled,
 	}
 	// 创建请求数据
 	reqData, pbMsgId, err := createRequestData(reqParams)
