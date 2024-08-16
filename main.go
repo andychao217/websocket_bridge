@@ -151,6 +151,29 @@ func handleMessages() {
 		"STEREO_CFG_SET_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.StereoCfgSetReply)) },
 		"OUT_CHANNEL_EDIT_REPLY":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.OutChannelEditReply)) },
 		"IN_CHANNEL_EDIT_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.InChannelEditReply)) },
+		"BLUETOOTH_CFG_SET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.BluetoothCfgSetReply)) },
+		"SPEECH_CFG_SET_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.SpeechCfgSetReply)) },
+		"BLUETOOTH_WHITELIST_ADD_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.BluetoothWhitelistAddReply))
+		},
+		"BLUETOOTH_WHITELIST_DELETE_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.BluetoothWhitelistDeleteReply))
+		},
+		"AMP_CHECK_CFG_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.AmpCheckCfgSetReply))
+		},
+		"AUDIO_MATRIX_CFG_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.AudioMatrixCfgSetReply))
+		},
+		"RADIO_FREQ_ADD_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.RadioFreqAddReply))
+		},
+		"RADIO_FREQ_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.RadioFreqSetReply))
+		},
+		"RADIO_FREQ_DELETE_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.RadioFreqDeleteReply))
+		},
 	}
 
 	for payload := range broadcast {
@@ -201,8 +224,26 @@ func handleMessages() {
 				msgData = &proto.InChannelEditReply{}
 			case "LED_CFG_SET_REPLY":
 				msgData = &proto.LedCfgSetReply{}
+			case "AMP_CHECK_CFG_SET_REPLY":
+				msgData = &proto.AmpCheckCfgSetReply{}
+			case "AUDIO_MATRIX_CFG_SET_REPLY":
+				msgData = &proto.AudioMatrixCfgSetReply{}
 			case "STEREO_CFG_SET_REPLY":
 				msgData = &proto.StereoCfgSetReply{}
+			case "BLUETOOTH_CFG_SET_REPLY":
+				msgData = &proto.BluetoothCfgSetReply{}
+			case "SPEECH_CFG_SET_REPLY":
+				msgData = &proto.SpeechCfgSetReply{}
+			case "BLUETOOTH_WHITELIST_ADD_REPLY":
+				msgData = &proto.BluetoothWhitelistAddReply{}
+			case "BLUETOOTH_WHITELIST_DELETE_REPLY":
+				msgData = &proto.BluetoothWhitelistDeleteReply{}
+			case "RADIO_FREQ_ADD_REPLY":
+				msgData = &proto.RadioFreqAddReply{}
+			case "RADIO_FREQ_SET_REPLY":
+				msgData = &proto.RadioFreqSetReply{}
+			case "RADIO_FREQ_DELETE_REPLY":
+				msgData = &proto.RadioFreqDeleteReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -495,14 +536,20 @@ func sendUDP(data []byte) {
 
 // 创建请求数据
 func createRequestData(params *struct {
-	ControlType string
-	Username    string
-	Task        *proto.Task // 修改为指针类型
-	Uuid        string
-	ComID       string
-	DeviceInfo  *proto.DeviceInfo
-	ChannelAttr *proto.ChannelAttr
-	Enabled     bool
+	ControlType        string
+	Username           string
+	Task               *proto.Task // 修改为指针类型
+	Uuid               string
+	ComID              string
+	DeviceInfo         *proto.DeviceInfo
+	ChannelAttr        *proto.ChannelAttr
+	SpeechCfg          *proto.SpeechCfg
+	DevicePowerPack    *proto.DevicePowerPack
+	AudioMatrix        *proto.AudioMatrix
+	RadioFreq          *proto.RadioFreq
+	BluetoothCfg       *proto.BluetoothCfg
+	BluetoothWhitelist *proto.BluetoothWhitelist
+	Enabled            bool
 }) (gProto.Message, proto.MsgId, error) {
 	var reqData gProto.Message
 	var pbMsgId proto.MsgId
@@ -555,9 +602,39 @@ func createRequestData(params *struct {
 	case "deviceLEDSet":
 		reqData = &proto.LedCfgSet{Username: params.Username, LedEnable: params.Enabled}
 		pbMsgId = 336
+	case "deviceAmpCheckSet":
+		reqData = &proto.AmpCheckCfgSet{Username: params.Username, AmpCheckEnable: params.Enabled}
+		pbMsgId = 344
 	case "deviceStereoSet":
 		reqData = &proto.StereoCfgSet{Username: params.Username, StereoEnable: params.Enabled}
 		pbMsgId = 329
+	case "devicePowerCfgSet":
+		reqData = &proto.DevicePowerSet{Username: params.Username, Out_1Power: params.DevicePowerPack.Out_1Power, Out_2Power: params.DevicePowerPack.Out_2Power, Out_3Power: params.DevicePowerPack.Out_3Power, Out_4Power: params.DevicePowerPack.Out_4Power}
+		pbMsgId = 310
+	case "deviceAudioMatrixCfgSet":
+		reqData = &proto.AudioMatrixCfgSet{Username: params.Username, AudioMatrix: params.AudioMatrix}
+		pbMsgId = 373
+	case "deviceRadioFreqAdd":
+		reqData = &proto.RadioFreqAdd{Username: params.Username, Rf: params.RadioFreq}
+		pbMsgId = 296
+	case "deviceRadioFreqSet":
+		reqData = &proto.RadioFreqSet{Username: params.Username, Rf: params.RadioFreq}
+		pbMsgId = 298
+	case "deviceRadioFreqDelete":
+		reqData = &proto.RadioFreqDelete{Username: params.Username, Rf: params.RadioFreq}
+		pbMsgId = 300
+	case "deviceSpeechCfgSet":
+		reqData = &proto.SpeechCfgSet{Username: params.Username, SpeechCfg: params.SpeechCfg}
+		pbMsgId = 340
+	case "deviceBluetoothCfgSet":
+		reqData = &proto.BluetoothCfgSet{Username: params.Username, BluetoothCfg: params.BluetoothCfg}
+		pbMsgId = 348
+	case "deviceBluetoothWhitelistAdd":
+		reqData = &proto.BluetoothWhitelistAdd{Username: params.Username, Whitelist: params.BluetoothWhitelist}
+		pbMsgId = 352
+	case "deviceBluetoothWhitelistDelete":
+		reqData = &proto.BluetoothWhitelistDelete{Username: params.Username, Whitelist: params.BluetoothWhitelist}
+		pbMsgId = 354
 	case "deviceLogGet":
 		reqData = &proto.GetLog{Username: params.Username, Type: 0}
 		pbMsgId = 247
@@ -585,17 +662,23 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 这里可以添加处理 POST 请求的逻辑
 	var params struct {
-		ChannelID     string             `json:"channelID"`
-		ThingIdentity string             `json:"thingIdentity"`
-		Host          string             `json:"host"`
-		ComID         string             `json:"comID"`
-		ControlType   string             `json:"controlType"`
-		Uuid          string             `json:"uuid"`
-		Task          *proto.Task        `json:"task"`
-		Username      string             `json:"username"`
-		DeviceInfo    *proto.DeviceInfo  `json:"deviceInfo"`
-		ChannelAttr   *proto.ChannelAttr `json:"channelAttr"`
-		Enabled       bool               `json:"enabled"`
+		ChannelID          string                    `json:"channelID"`
+		ThingIdentity      string                    `json:"thingIdentity"`
+		Host               string                    `json:"host"`
+		ComID              string                    `json:"comID"`
+		ControlType        string                    `json:"controlType"`
+		Uuid               string                    `json:"uuid"`
+		Task               *proto.Task               `json:"task"`
+		Username           string                    `json:"username"`
+		DeviceInfo         *proto.DeviceInfo         `json:"deviceInfo"`
+		ChannelAttr        *proto.ChannelAttr        `json:"channelAttr"`
+		SpeechCfg          *proto.SpeechCfg          `json:"speechCfg"`
+		DevicePowerPack    *proto.DevicePowerPack    `json:"devicePowerPack"`
+		AudioMatrix        *proto.AudioMatrix        `json:"audioMatrix"`
+		RadioFreq          *proto.RadioFreq          `json:"radioFreq"`
+		BluetoothCfg       *proto.BluetoothCfg       `json:"bluetoothCfg"`
+		BluetoothWhitelist *proto.BluetoothWhitelist `json:"bluetoothWhitelist"`
+		Enabled            bool                      `json:"enabled"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -640,23 +723,35 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 创建一个新的结构体，传递所需字段
 	reqParams := &struct {
-		ControlType string
-		Username    string
-		Task        *proto.Task // 修改为指针类型
-		Uuid        string
-		ComID       string
-		DeviceInfo  *proto.DeviceInfo
-		ChannelAttr *proto.ChannelAttr
-		Enabled     bool
+		ControlType        string
+		Username           string
+		Task               *proto.Task // 修改为指针类型
+		Uuid               string
+		ComID              string
+		DeviceInfo         *proto.DeviceInfo
+		ChannelAttr        *proto.ChannelAttr
+		SpeechCfg          *proto.SpeechCfg
+		DevicePowerPack    *proto.DevicePowerPack
+		AudioMatrix        *proto.AudioMatrix
+		RadioFreq          *proto.RadioFreq
+		BluetoothCfg       *proto.BluetoothCfg
+		BluetoothWhitelist *proto.BluetoothWhitelist
+		Enabled            bool
 	}{
-		ControlType: params.ControlType,
-		Username:    params.Username,
-		Task:        params.Task, // 直接使用指针
-		Uuid:        params.Uuid,
-		ComID:       params.ComID,
-		DeviceInfo:  params.DeviceInfo,
-		ChannelAttr: params.ChannelAttr,
-		Enabled:     params.Enabled,
+		ControlType:        params.ControlType,
+		Username:           params.Username,
+		Task:               params.Task, // 直接使用指针
+		Uuid:               params.Uuid,
+		ComID:              params.ComID,
+		DeviceInfo:         params.DeviceInfo,
+		ChannelAttr:        params.ChannelAttr,
+		SpeechCfg:          params.SpeechCfg,
+		DevicePowerPack:    params.DevicePowerPack,
+		AudioMatrix:        params.AudioMatrix,
+		RadioFreq:          params.RadioFreq,
+		BluetoothCfg:       params.BluetoothCfg,
+		BluetoothWhitelist: params.BluetoothWhitelist,
+		Enabled:            params.Enabled,
 	}
 	// 创建请求数据
 	reqData, pbMsgId, err := createRequestData(reqParams)
