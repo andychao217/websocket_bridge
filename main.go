@@ -165,6 +165,9 @@ func handleMessages() {
 		"AUDIO_MATRIX_CFG_SET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.AudioMatrixCfgSetReply))
 		},
+		"RADIO_FREQ_GET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.RadioFreqGetReply))
+		},
 		"RADIO_FREQ_ADD_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.RadioFreqAddReply))
 		},
@@ -238,6 +241,8 @@ func handleMessages() {
 				msgData = &proto.BluetoothWhitelistAddReply{}
 			case "BLUETOOTH_WHITELIST_DELETE_REPLY":
 				msgData = &proto.BluetoothWhitelistDeleteReply{}
+			case "RADIO_FREQ_GET_REPLY":
+				msgData = &proto.RadioFreqGetReply{}
 			case "RADIO_FREQ_ADD_REPLY":
 				msgData = &proto.RadioFreqAddReply{}
 			case "RADIO_FREQ_SET_REPLY":
@@ -614,6 +619,9 @@ func createRequestData(params *struct {
 	case "deviceAudioMatrixCfgSet":
 		reqData = &proto.AudioMatrixCfgSet{Username: params.Username, AudioMatrix: params.AudioMatrix}
 		pbMsgId = 373
+	case "deviceRadioFreqGet":
+		reqData = &proto.RadioFreqGet{Username: params.Username}
+		pbMsgId = 294
 	case "deviceRadioFreqAdd":
 		reqData = &proto.RadioFreqAdd{Username: params.Username, Rf: params.RadioFreq}
 		pbMsgId = 296
