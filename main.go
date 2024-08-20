@@ -453,6 +453,11 @@ func savePbMsg(message []byte) {
 
 // 返回UDP扫描到的设备信息
 func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "GET")
@@ -480,6 +485,11 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 
 // 平台系统添加设备成功后，给设备回一个确认消息
 func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -683,6 +693,10 @@ func createRequestData(params *struct {
 
 // 给设备发送指令
 func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
 	// 设置 CORS 头
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
@@ -971,6 +985,11 @@ func buildTaskList(client *minio.Client, bucket, prefix string) []*proto.Task {
 
 // 获取日程列表
 func getTaskListHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -1049,6 +1068,11 @@ func CheckFileExists(path, uuid string) error {
 
 // 添加日程
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -1125,6 +1149,11 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // 修改日程
 func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "PUT")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -1192,6 +1221,11 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // 复制日程
 func copyTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -1267,6 +1301,11 @@ func copyTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 // 删除日程
 func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
 	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
 	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
@@ -1391,6 +1430,14 @@ func CompressionMiddleware(next http.Handler) http.Handler {
 			next.ServeHTTP(w, r)
 		}
 	})
+}
+
+func handlePreflight(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Max-Age", "86400") // 缓存 1 天
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func main() {
