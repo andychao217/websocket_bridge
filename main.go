@@ -177,6 +177,15 @@ func handleMessages() {
 		"RADIO_FREQ_DELETE_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.RadioFreqDeleteReply))
 		},
+		"U_CHANNEL_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.UChannelSetReply))
+		},
+		"EQ_CFG_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.EqCfgSetReply))
+		},
+		"SPEAKER_VOLUME_SET_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.SpeakerVolumeSetReply))
+		},
 	}
 
 	for payload := range broadcast {
@@ -249,6 +258,12 @@ func handleMessages() {
 				msgData = &proto.RadioFreqSetReply{}
 			case "RADIO_FREQ_DELETE_REPLY":
 				msgData = &proto.RadioFreqDeleteReply{}
+			case "U_CHANNEL_SET_REPLY":
+				msgData = &proto.UChannelSetReply{}
+			case "EQ_CFG_SET_REPLY":
+				msgData = &proto.EqCfgSetReply{}
+			case "SPEAKER_VOLUME_SET_REPLY":
+				msgData = &proto.SpeakerVolumeSetReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -550,6 +565,9 @@ func createRequestData(params *struct {
 	ChannelAttr        *proto.ChannelAttr
 	SpeechCfg          *proto.SpeechCfg
 	DevicePowerPack    *proto.DevicePowerPack
+	UChannel           int32
+	EqCfg              *proto.EqCfg
+	SpeakerVolume      *proto.SpeakerVolume
 	AudioMatrix        *proto.AudioMatrix
 	RadioFreq          *proto.RadioFreq
 	BluetoothCfg       *proto.BluetoothCfg
@@ -631,6 +649,15 @@ func createRequestData(params *struct {
 	case "deviceRadioFreqDelete":
 		reqData = &proto.RadioFreqDelete{Username: params.Username, Rf: params.RadioFreq}
 		pbMsgId = 300
+	case "deviceUChannelSet":
+		reqData = &proto.UChannelSet{UChannel: params.UChannel}
+		pbMsgId = 397
+	case "deviceEqCfgSet":
+		reqData = &proto.EqCfgSet{EqCfg: params.EqCfg}
+		pbMsgId = 395
+	case "deviceSpeakerVolumeSet":
+		reqData = &proto.SpeakerVolumeSet{Volume: params.SpeakerVolume}
+		pbMsgId = 391
 	case "deviceSpeechCfgSet":
 		reqData = &proto.SpeechCfgSet{Username: params.Username, SpeechCfg: params.SpeechCfg}
 		pbMsgId = 340
@@ -682,6 +709,9 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		ChannelAttr        *proto.ChannelAttr        `json:"channelAttr"`
 		SpeechCfg          *proto.SpeechCfg          `json:"speechCfg"`
 		DevicePowerPack    *proto.DevicePowerPack    `json:"devicePowerPack"`
+		UChannel           int32                     `json:"uChannel"`
+		EqCfg              *proto.EqCfg              `json:"eqCfg"`
+		SpeakerVolume      *proto.SpeakerVolume      `json:"speakerVolume"`
 		AudioMatrix        *proto.AudioMatrix        `json:"audioMatrix"`
 		RadioFreq          *proto.RadioFreq          `json:"radioFreq"`
 		BluetoothCfg       *proto.BluetoothCfg       `json:"bluetoothCfg"`
@@ -740,6 +770,9 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		ChannelAttr        *proto.ChannelAttr
 		SpeechCfg          *proto.SpeechCfg
 		DevicePowerPack    *proto.DevicePowerPack
+		UChannel           int32
+		EqCfg              *proto.EqCfg
+		SpeakerVolume      *proto.SpeakerVolume
 		AudioMatrix        *proto.AudioMatrix
 		RadioFreq          *proto.RadioFreq
 		BluetoothCfg       *proto.BluetoothCfg
@@ -755,6 +788,9 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		ChannelAttr:        params.ChannelAttr,
 		SpeechCfg:          params.SpeechCfg,
 		DevicePowerPack:    params.DevicePowerPack,
+		UChannel:           params.UChannel,
+		EqCfg:              params.EqCfg,
+		SpeakerVolume:      params.SpeakerVolume,
 		AudioMatrix:        params.AudioMatrix,
 		RadioFreq:          params.RadioFreq,
 		BluetoothCfg:       params.BluetoothCfg,
