@@ -125,6 +125,7 @@ func handleWebsocketMessage(message []byte) {
 func handleMessages() {
 	type PayloadData struct {
 		Data    interface{} `json:"data"`
+		Source  string      `json:"source"`
 		MsgName string      `json:"msgName"`
 	}
 
@@ -199,7 +200,7 @@ func handleMessages() {
 		msgIdName := proto.MsgId_name[int32(receivedMsg.Id)]
 		data := receivedMsg.Data
 
-		unmarshaledData := PayloadData{MsgName: msgIdName}
+		unmarshaledData := PayloadData{MsgName: msgIdName, Source: receivedMsg.Source}
 
 		// 使用映射解析消息
 		if parser, exists := msgParsers[msgIdName]; exists {
