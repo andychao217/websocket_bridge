@@ -463,6 +463,15 @@ func getDevicesHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "GET")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	mutex.Lock()
@@ -495,6 +504,15 @@ func addDeviceReplyHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	if r.Method != http.MethodPost {
@@ -702,6 +720,14 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 
@@ -995,6 +1021,14 @@ func getTaskListHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
 
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	if r.Method != http.MethodPost {
@@ -1078,6 +1112,14 @@ func addTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
 
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	if r.Method != http.MethodPost {
@@ -1159,6 +1201,14 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
 
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
 	w.WriteHeader(http.StatusOK)
 
 	if r.Method != http.MethodPut {
@@ -1230,6 +1280,14 @@ func copyTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "POST")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 
@@ -1310,6 +1368,14 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Methods", "DELETE")
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
 
 	w.WriteHeader(http.StatusOK)
 
@@ -1435,7 +1501,7 @@ func CompressionMiddleware(next http.Handler) http.Handler {
 func handlePreflight(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 	w.Header().Set("Access-Control-Max-Age", "86400") // 缓存 1 天
 	w.WriteHeader(http.StatusNoContent)
 }
