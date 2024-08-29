@@ -142,6 +142,9 @@ func handleMessages() {
 		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
 		},
+		"SOUND_CONSOLE_TASK_CONTROL_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.SoundConsoleTaskControlReply))
+		},
 		"GET_LOG_REPLY":           func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.GetLogReply)) },
 		"DEVICE_LOGIN":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
 		"DEVICE_INFO_GET_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
@@ -219,6 +222,8 @@ func handleMessages() {
 				msgData = &proto.TaskSyncStatusGet{}
 			case "TASK_SYNC_STATUS_GET_REPLY":
 				msgData = &proto.TaskSyncStatusGetReply{}
+			case "SOUND_CONSOLE_TASK_CONTROL_REPLY":
+				msgData = &proto.SoundConsoleTaskControlReply{}
 			case "GET_LOG_REPLY":
 				msgData = &proto.GetLogReply{}
 			case "DEVICE_LOGIN":
@@ -585,23 +590,24 @@ func sendUDP(data []byte) {
 
 // 创建请求数据
 func createRequestData(params *struct {
-	ControlType        string
-	Username           string
-	Task               *proto.Task // 修改为指针类型
-	Uuid               string
-	ComID              string
-	DeviceInfo         *proto.DeviceInfo
-	ChannelAttr        *proto.ChannelAttr
-	SpeechCfg          *proto.SpeechCfg
-	DevicePowerPack    *proto.DevicePowerPack
-	UChannel           int32
-	EqCfg              *proto.EqCfg
-	SpeakerVolume      *proto.SpeakerVolume
-	AudioMatrix        *proto.AudioMatrix
-	RadioFreq          *proto.RadioFreq
-	BluetoothCfg       *proto.BluetoothCfg
-	BluetoothWhitelist *proto.BluetoothWhitelist
-	Enabled            bool
+	ControlType             string
+	Username                string
+	Task                    *proto.Task // 修改为指针类型
+	Uuid                    string
+	ComID                   string
+	DeviceInfo              *proto.DeviceInfo
+	ChannelAttr             *proto.ChannelAttr
+	SpeechCfg               *proto.SpeechCfg
+	DevicePowerPack         *proto.DevicePowerPack
+	SoundConsoleTaskControl *proto.SoundConsoleTaskControl
+	UChannel                int32
+	EqCfg                   *proto.EqCfg
+	SpeakerVolume           *proto.SpeakerVolume
+	AudioMatrix             *proto.AudioMatrix
+	RadioFreq               *proto.RadioFreq
+	BluetoothCfg            *proto.BluetoothCfg
+	BluetoothWhitelist      *proto.BluetoothWhitelist
+	Enabled                 bool
 }) (gProto.Message, proto.MsgId, error) {
 	var reqData gProto.Message
 	var pbMsgId proto.MsgId
@@ -616,10 +622,25 @@ func createRequestData(params *struct {
 		} else if params.ControlType == "taskDelete" {
 			taskSyncType = 1
 		}
-		reqData = &proto.TaskSync{Username: params.Username, Type: taskSyncType, TaskUuid: params.Uuid} // 直接使用指针
+		reqData = &proto.TaskSync{
+			Username: params.Username,
+			Type:     taskSyncType,
+			TaskUuid: params.Uuid,
+		}
 		pbMsgId = 312
+	case "soundConsleTaskControl":
+		reqData = &proto.SoundConsoleTaskControl{
+			Username:   params.Username,
+			Uuid:       params.Uuid,
+			Command:    params.SoundConsoleTaskControl.Command,
+			Song:       params.SoundConsoleTaskControl.Song,
+			Position:   params.SoundConsoleTaskControl.Position,
+			Volume:     params.SoundConsoleTaskControl.Volume,
+			VolumeType: params.SoundConsoleTaskControl.VolumeType,
+		}
+		pbMsgId = 275
 	case "taskStart":
-		reqData = &proto.TaskStart{Username: params.Username, Task: params.Task} // 直接使用指针
+		reqData = &proto.TaskStart{Username: params.Username, Task: params.Task}
 		pbMsgId = 231
 	case "taskStop":
 		reqData = &proto.TaskStop{Username: params.Username, Uuid: params.Uuid}
@@ -661,7 +682,13 @@ func createRequestData(params *struct {
 		reqData = &proto.StereoCfgSet{Username: params.Username, StereoEnable: params.Enabled}
 		pbMsgId = 329
 	case "devicePowerCfgSet":
-		reqData = &proto.DevicePowerSet{Username: params.Username, Out_1Power: params.DevicePowerPack.Out_1Power, Out_2Power: params.DevicePowerPack.Out_2Power, Out_3Power: params.DevicePowerPack.Out_3Power, Out_4Power: params.DevicePowerPack.Out_4Power}
+		reqData = &proto.DevicePowerSet{
+			Username:   params.Username,
+			Out_1Power: params.DevicePowerPack.Out_1Power,
+			Out_2Power: params.DevicePowerPack.Out_2Power,
+			Out_3Power: params.DevicePowerPack.Out_3Power,
+			Out_4Power: params.DevicePowerPack.Out_4Power,
+		}
 		pbMsgId = 310
 	case "deviceAudioMatrixCfgSet":
 		reqData = &proto.AudioMatrixCfgSet{Username: params.Username, AudioMatrix: params.AudioMatrix}
@@ -738,26 +765,27 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 这里可以添加处理 POST 请求的逻辑
 	var params struct {
-		ChannelID          string                    `json:"channelID"`
-		ThingIdentity      string                    `json:"thingIdentity"`
-		Host               string                    `json:"host"`
-		ComID              string                    `json:"comID"`
-		ControlType        string                    `json:"controlType"`
-		Uuid               string                    `json:"uuid"`
-		Task               *proto.Task               `json:"task"`
-		Username           string                    `json:"username"`
-		DeviceInfo         *proto.DeviceInfo         `json:"deviceInfo"`
-		ChannelAttr        *proto.ChannelAttr        `json:"channelAttr"`
-		SpeechCfg          *proto.SpeechCfg          `json:"speechCfg"`
-		DevicePowerPack    *proto.DevicePowerPack    `json:"devicePowerPack"`
-		UChannel           int32                     `json:"uChannel"`
-		EqCfg              *proto.EqCfg              `json:"eqCfg"`
-		SpeakerVolume      *proto.SpeakerVolume      `json:"speakerVolume"`
-		AudioMatrix        *proto.AudioMatrix        `json:"audioMatrix"`
-		RadioFreq          *proto.RadioFreq          `json:"radioFreq"`
-		BluetoothCfg       *proto.BluetoothCfg       `json:"bluetoothCfg"`
-		BluetoothWhitelist *proto.BluetoothWhitelist `json:"bluetoothWhitelist"`
-		Enabled            bool                      `json:"enabled"`
+		ChannelID               string                         `json:"channelID"`
+		ThingIdentity           string                         `json:"thingIdentity"`
+		Host                    string                         `json:"host"`
+		ComID                   string                         `json:"comID"`
+		ControlType             string                         `json:"controlType"`
+		Uuid                    string                         `json:"uuid"`
+		Task                    *proto.Task                    `json:"task"`
+		Username                string                         `json:"username"`
+		DeviceInfo              *proto.DeviceInfo              `json:"deviceInfo"`
+		ChannelAttr             *proto.ChannelAttr             `json:"channelAttr"`
+		SpeechCfg               *proto.SpeechCfg               `json:"speechCfg"`
+		DevicePowerPack         *proto.DevicePowerPack         `json:"devicePowerPack"`
+		SoundConsoleTaskControl *proto.SoundConsoleTaskControl `json:"soundConsoleTaskControl"`
+		UChannel                int32                          `json:"uChannel"`
+		EqCfg                   *proto.EqCfg                   `json:"eqCfg"`
+		SpeakerVolume           *proto.SpeakerVolume           `json:"speakerVolume"`
+		AudioMatrix             *proto.AudioMatrix             `json:"audioMatrix"`
+		RadioFreq               *proto.RadioFreq               `json:"radioFreq"`
+		BluetoothCfg            *proto.BluetoothCfg            `json:"bluetoothCfg"`
+		BluetoothWhitelist      *proto.BluetoothWhitelist      `json:"bluetoothWhitelist"`
+		Enabled                 bool                           `json:"enabled"`
 	}
 
 	err := json.NewDecoder(r.Body).Decode(&params)
@@ -802,41 +830,43 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 
 	// 创建一个新的结构体，传递所需字段
 	reqParams := &struct {
-		ControlType        string
-		Username           string
-		Task               *proto.Task // 修改为指针类型
-		Uuid               string
-		ComID              string
-		DeviceInfo         *proto.DeviceInfo
-		ChannelAttr        *proto.ChannelAttr
-		SpeechCfg          *proto.SpeechCfg
-		DevicePowerPack    *proto.DevicePowerPack
-		UChannel           int32
-		EqCfg              *proto.EqCfg
-		SpeakerVolume      *proto.SpeakerVolume
-		AudioMatrix        *proto.AudioMatrix
-		RadioFreq          *proto.RadioFreq
-		BluetoothCfg       *proto.BluetoothCfg
-		BluetoothWhitelist *proto.BluetoothWhitelist
-		Enabled            bool
+		ControlType             string
+		Username                string
+		Task                    *proto.Task // 修改为指针类型
+		Uuid                    string
+		ComID                   string
+		DeviceInfo              *proto.DeviceInfo
+		ChannelAttr             *proto.ChannelAttr
+		SpeechCfg               *proto.SpeechCfg
+		DevicePowerPack         *proto.DevicePowerPack
+		SoundConsoleTaskControl *proto.SoundConsoleTaskControl
+		UChannel                int32
+		EqCfg                   *proto.EqCfg
+		SpeakerVolume           *proto.SpeakerVolume
+		AudioMatrix             *proto.AudioMatrix
+		RadioFreq               *proto.RadioFreq
+		BluetoothCfg            *proto.BluetoothCfg
+		BluetoothWhitelist      *proto.BluetoothWhitelist
+		Enabled                 bool
 	}{
-		ControlType:        params.ControlType,
-		Username:           params.Username,
-		Task:               params.Task, // 直接使用指针
-		Uuid:               params.Uuid,
-		ComID:              params.ComID,
-		DeviceInfo:         params.DeviceInfo,
-		ChannelAttr:        params.ChannelAttr,
-		SpeechCfg:          params.SpeechCfg,
-		DevicePowerPack:    params.DevicePowerPack,
-		UChannel:           params.UChannel,
-		EqCfg:              params.EqCfg,
-		SpeakerVolume:      params.SpeakerVolume,
-		AudioMatrix:        params.AudioMatrix,
-		RadioFreq:          params.RadioFreq,
-		BluetoothCfg:       params.BluetoothCfg,
-		BluetoothWhitelist: params.BluetoothWhitelist,
-		Enabled:            params.Enabled,
+		ControlType:             params.ControlType,
+		Username:                params.Username,
+		Task:                    params.Task, // 直接使用指针
+		Uuid:                    params.Uuid,
+		ComID:                   params.ComID,
+		DeviceInfo:              params.DeviceInfo,
+		ChannelAttr:             params.ChannelAttr,
+		SpeechCfg:               params.SpeechCfg,
+		DevicePowerPack:         params.DevicePowerPack,
+		SoundConsoleTaskControl: params.SoundConsoleTaskControl,
+		UChannel:                params.UChannel,
+		EqCfg:                   params.EqCfg,
+		SpeakerVolume:           params.SpeakerVolume,
+		AudioMatrix:             params.AudioMatrix,
+		RadioFreq:               params.RadioFreq,
+		BluetoothCfg:            params.BluetoothCfg,
+		BluetoothWhitelist:      params.BluetoothWhitelist,
+		Enabled:                 params.Enabled,
 	}
 	// 创建请求数据
 	reqData, pbMsgId, err := createRequestData(reqParams)
@@ -1425,6 +1455,181 @@ func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// 实时广播任务请求结构体-添加、更新
+type BroadcastTaskRequest struct {
+	ComID    string                  `json:"comID"`
+	Username string                  `json:"username"`
+	Uuid     string                  `json:"uuid"`
+	Task     proto.SoundConsoleScene `json:"task"`
+}
+
+// 实时广播任务响应结构体
+type BroadcastTaskResponse struct {
+	Message string                   `json:"message"`
+	Task    *proto.SoundConsoleScene `json:"task"`
+}
+
+// 新增、修改实时广播任务
+func updateBroadcastTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request BroadcastTaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	// 将结构体编码为proto流
+	newTaskData, err := gProto.Marshal(&request.Task)
+	if err != nil {
+		http.Error(w, "Failed to encode proto message", http.StatusInternalServerError)
+		return
+	}
+
+	filePath := request.ComID + "/console/" + request.Username + "/" + request.Task.Uuid
+
+	// 检查文件是否存在
+	_, err = minioClient.StatObject(context.Background(), bucketName, filePath, minio.StatObjectOptions{})
+	if err != nil {
+		if minio.ToErrorResponse(err).Code == "NoSuchKey" {
+			// 文件不存在，执行新增逻辑
+			contentType := "application/octet-stream"
+			_, err := minioClient.PutObject(context.Background(), bucketName, filePath, bytes.NewReader(newTaskData), int64(len(newTaskData)), minio.PutObjectOptions{ContentType: contentType})
+			if err != nil {
+				http.Error(w, "Failed to upload to MinIO", http.StatusInternalServerError)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			response := BroadcastTaskResponse{
+				Message: "Created successfully!",
+				Task:    &request.Task,
+			}
+			err = json.NewEncoder(w).Encode(response)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		} else {
+			// 检查文件时出错
+			http.Error(w, "File not found in MinIO", http.StatusNotFound)
+			return
+		}
+	} else {
+		// 文件存在，执行更新逻辑
+		contentType := "application/octet-stream"
+		_, err := minioClient.PutObject(context.Background(), bucketName, filePath, bytes.NewReader(newTaskData), int64(len(newTaskData)), minio.PutObjectOptions{ContentType: contentType})
+		if err != nil {
+			http.Error(w, "Failed to upload to MinIO", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		response := BroadcastTaskResponse{
+			Message: "Updated successfully!",
+			Task:    &request.Task,
+		}
+		err = json.NewEncoder(w).Encode(response)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+	}
+}
+
+// 查询实时广播任务
+func getBroadcastTaskHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		handlePreflight(w, r)
+		return
+	}
+
+	w.Header().Set("Access-Control-Allow-Origin", "*") // 允许所有来源，或者指定具体的来源
+	w.Header().Set("Access-Control-Allow-Methods", "POST")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+	w.Header().Set("Content-Type", "application/json")
+
+	// 验证请求头中是否有 Authorization
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		// 如果没有 Authorization 头，则返回 401 未授权错误
+		http.Error(w, "Authorization header missing", http.StatusUnauthorized)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var request BroadcastTaskRequest
+	err := json.NewDecoder(r.Body).Decode(&request)
+	if err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}
+
+	filePath := request.ComID + "/console/" + request.Username + "/" + request.Uuid
+
+	// 检查文件是否存在
+	broadcastTaskFile, err := minioClient.GetObject(context.Background(), bucketName, filePath, minio.StatObjectOptions{})
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	broadcastTaskData, err := io.ReadAll(broadcastTaskFile)
+	broadcastTaskFile.Close() // 确保在读取完数据后立即关闭对象
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	var broadcastTask proto.SoundConsoleScene
+	if err := gProto.Unmarshal(broadcastTaskData, &broadcastTask); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// 返回成功响应
+	w.WriteHeader(http.StatusOK)
+	// 创建响应数据
+	response := BroadcastTaskResponse{
+		Message: "Get broadcast task successfully!",
+		Task:    &broadcastTask,
+	}
+	// 将响应数据编码为JSON并写入响应
+	err = json.NewEncoder(w).Encode(response)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 type gzipResponseWriter struct {
 	io.Writer
 	http.ResponseWriter
@@ -1525,6 +1730,8 @@ func main() {
 	http.HandleFunc("/updateTask", updateTaskHandler)
 	http.HandleFunc("/copyTask", copyTaskHandler)
 	http.HandleFunc("/deleteTask", deleteTaskHandler)
+	http.HandleFunc("/updateBroadcastTask", updateBroadcastTaskHandler)
+	http.HandleFunc("/getBroadcastTask", getBroadcastTaskHandler)
 
 	port := os.Getenv("MG_SOCKET_BRIDGE_PORT")
 	if port == "" {
