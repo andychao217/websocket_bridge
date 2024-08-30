@@ -135,7 +135,9 @@ func handleMessages() {
 	// 映射消息ID到解析函数
 	msgParsers := map[string]msgParser{
 		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
+		"TASK_START_REPLY":      func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStartReply)) },
 		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
+		"TASK_STOP_REPLY":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStopReply)) },
 		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
 		"TASK_STATUS_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGetReply)) },
 		"TASK_SYNC_STATUS_GET":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
@@ -144,6 +146,9 @@ func handleMessages() {
 		},
 		"SOUND_CONSOLE_TASK_CONTROL_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.SoundConsoleTaskControlReply))
+		},
+		"SOUND_CONSOLE_TASK_FEEDBACK": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.SoundConsoleTaskFeedback))
 		},
 		"GET_LOG_REPLY":           func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.GetLogReply)) },
 		"DEVICE_LOGIN":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
@@ -212,8 +217,12 @@ func handleMessages() {
 			switch msgIdName {
 			case "TASK_START":
 				msgData = &proto.TaskStart{}
+			case "TASK_START_REPLY":
+				msgData = &proto.TaskStartReply{}
 			case "TASK_STOP":
 				msgData = &proto.TaskStop{}
+			case "TASK_STOP_REPLY":
+				msgData = &proto.TaskStopReply{}
 			case "TASK_STATUS_GET":
 				msgData = &proto.TaskStatusGet{}
 			case "TASK_STATUS_GET_REPLY":
@@ -224,6 +233,8 @@ func handleMessages() {
 				msgData = &proto.TaskSyncStatusGetReply{}
 			case "SOUND_CONSOLE_TASK_CONTROL_REPLY":
 				msgData = &proto.SoundConsoleTaskControlReply{}
+			case "SOUND_CONSOLE_TASK_FEEDBACK":
+				msgData = &proto.SoundConsoleTaskFeedback{}
 			case "GET_LOG_REPLY":
 				msgData = &proto.GetLogReply{}
 			case "DEVICE_LOGIN":
