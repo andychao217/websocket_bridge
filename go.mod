@@ -1,4 +1,4 @@
-module github.com/andychao217/magistrala-websocket_bridge
+module github.com/andychao217/websocket_bridge
 
 go 1.22.1
 

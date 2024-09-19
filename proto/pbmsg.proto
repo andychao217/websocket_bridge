@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package proto;  // 替换为你的包名
 
-option go_package = "github.com/yourusername/yourproject/proto";
+option go_package = "github.com/andychao217/websocket_bridge/proto";
 
 option optimize_for = LITE_RUNTIME;
 
