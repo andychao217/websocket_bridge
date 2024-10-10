@@ -40,6 +40,26 @@ var upgrader = websocket.Upgrader{
 var minioClient *minio.Client // MinIO 客户端
 var bucketName string         // 存储桶名称
 
+// PbMsg 代表设备信息的结构体
+type PbMsg struct {
+	Timestamp   time.Time `json:"timestamp"`
+	Message     string    `json:"message"`
+	MessageType string    `json:"message_type"`
+}
+
+// 全局变量，用于存储接收到的设备信息
+var (
+	pbMsgs []PbMsg
+	mutex  sync.Mutex
+)
+
+// 定义允许的 ProductName 列表
+var allowedProductNames = map[string]struct{}{
+	"NXT2204": {},
+	"NXT3602": {},
+	"NXT2102": {},
+}
+
 // messageHistory 是一个包含 sync.RWMutex 和 map 的结构体，用于存储消息主题和内容组合的键以及对应的时间戳。
 var messageHistory = struct {
 	sync.RWMutex
@@ -342,19 +362,6 @@ func subscribeToMQTTTopic(broker, thingSecret, topic string) {
 	}
 }
 
-// PbMsg 代表设备信息的结构体
-type PbMsg struct {
-	Timestamp   time.Time `json:"timestamp"`
-	Message     string    `json:"message"`
-	MessageType string    `json:"message_type"`
-}
-
-// 全局变量，用于存储接收到的设备信息
-var (
-	pbMsgs []PbMsg
-	mutex  sync.Mutex
-)
-
 // clearPbMsgs 清空 pbMsgs
 func clearPbMsgs() {
 	mutex.Lock()
@@ -403,6 +410,12 @@ func startUDPListener() {
 	}
 }
 
+// isProductAllowed 检查 ProductName 是否在允许的列表中
+func isProductAllowed(productName string) bool {
+	_, exists := allowedProductNames[productName]
+	return exists
+}
+
 // savePbMsg 保存设备信息到全局变量
 func savePbMsg(message []byte) {
 	mutex.Lock()
@@ -428,6 +441,13 @@ func savePbMsg(message []byte) {
 			fmt.Println("解析错误:", err)
 			return
 		}
+
+		// 过滤不在允许列表中的 ProductName
+		if !isProductAllowed(temp.ProductName) {
+			fmt.Printf("产品名称 '%s' 不在允许的列表中，跳过处理。\n", temp.ProductName)
+			return
+		}
+
 		deviceName := temp.DeviceName
 		unmarshaledData = &temp
 
