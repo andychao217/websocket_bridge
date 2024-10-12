@@ -215,6 +215,9 @@ func handleMessages() {
 		"SPEAKER_VOLUME_SET_REPLY": func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.SpeakerVolumeSetReply))
 		},
+		"DEVICE_UPGRADE_REPLY": func(data []byte, v interface{}) error {
+			return gProto.Unmarshal(data, v.(*proto.DeviceUpgradeReply))
+		},
 	}
 
 	for payload := range broadcast {
@@ -301,6 +304,8 @@ func handleMessages() {
 				msgData = &proto.EqCfgSetReply{}
 			case "SPEAKER_VOLUME_SET_REPLY":
 				msgData = &proto.SpeakerVolumeSetReply{}
+			case "DEVICE_UPGRADE_REPLY":
+				msgData = &proto.DeviceUpgradeReply{}
 			default:
 				fmt.Println("未知的消息类型:", msgIdName)
 				continue
@@ -444,7 +449,7 @@ func savePbMsg(message []byte) {
 
 		// 过滤不在允许列表中的 ProductName
 		if !isProductAllowed(temp.ProductName) {
-			fmt.Printf("产品名称 '%s' 不在允许的列表中，跳过处理。\n", temp.ProductName)
+			// fmt.Printf("产品名称 '%s' 不在允许的列表中，跳过处理。\n", temp.ProductName)
 			return
 		}
 
@@ -638,6 +643,7 @@ func createRequestData(params *struct {
 	RadioFreq               *proto.RadioFreq
 	BluetoothCfg            *proto.BluetoothCfg
 	BluetoothWhitelist      *proto.BluetoothWhitelist
+	FirmwareUrl             string
 	Enabled                 bool
 }) (gProto.Message, proto.MsgId, error) {
 	var reqData gProto.Message
@@ -760,6 +766,9 @@ func createRequestData(params *struct {
 	case "deviceLogGet":
 		reqData = &proto.GetLog{Username: params.Username, Type: 0}
 		pbMsgId = 247
+	case "deviceUpgrade":
+		reqData = &proto.DeviceUpgrade{FirmwareUrl: params.FirmwareUrl}
+		pbMsgId = 306
 	default:
 		return nil, 0, fmt.Errorf("invalid control type: %s", params.ControlType)
 	}
@@ -816,6 +825,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		RadioFreq               *proto.RadioFreq               `json:"radioFreq"`
 		BluetoothCfg            *proto.BluetoothCfg            `json:"bluetoothCfg"`
 		BluetoothWhitelist      *proto.BluetoothWhitelist      `json:"bluetoothWhitelist"`
+		FirmwareUrl             string                         `json:"firmwareUrl"`
 		Enabled                 bool                           `json:"enabled"`
 	}
 
@@ -878,6 +888,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		RadioFreq               *proto.RadioFreq
 		BluetoothCfg            *proto.BluetoothCfg
 		BluetoothWhitelist      *proto.BluetoothWhitelist
+		FirmwareUrl             string
 		Enabled                 bool
 	}{
 		ControlType:             params.ControlType,
@@ -897,6 +908,7 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		RadioFreq:               params.RadioFreq,
 		BluetoothCfg:            params.BluetoothCfg,
 		BluetoothWhitelist:      params.BluetoothWhitelist,
+		FirmwareUrl:             params.FirmwareUrl,
 		Enabled:                 params.Enabled,
 	}
 	// 创建请求数据
