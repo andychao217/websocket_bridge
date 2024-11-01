@@ -4,6 +4,40 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"sync"
+	"time"
+
+	"github.com/gorilla/websocket"
+	"github.com/minio/minio-go/v7"
+)
+
+var (
+	pbMsgs      []PbMsg // 全局变量，用于存储接收到的设备信息
+	mutex       sync.Mutex
+	minioClient *minio.Client // MinIO 客户端
+	bucketName  string        // 存储桶名称
+
+	// 全局变量来存储所有连接的 WebSocket 客户端
+	clients   = make(map[*websocket.Conn]bool)
+	broadcast = make(chan []byte)
+	upgrader  = websocket.Upgrader{
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
+	// messageHistory 是一个包含 sync.RWMutex 和 map 的结构体，用于存储消息主题和内容组合的键以及对应的时间戳。
+	messageHistory = struct {
+		sync.RWMutex
+		m map[string]time.Time
+	}{m: make(map[string]time.Time)}
+
+	// 定义允许的 ProductName 列表
+	allowedProductNames = map[string]struct{}{
+		"NXT2204": {},
+		"NXT3602": {},
+		"NXT2102": {},
+	}
 )
 
 func main() {
