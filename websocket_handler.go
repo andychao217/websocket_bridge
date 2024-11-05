@@ -39,12 +39,6 @@ func handleWebsocketMessage(message []byte) {
 		log.Printf("Error parsing JSON: %v", err)
 		return
 	}
-
-	if msg.Message == "connect" {
-		for _, topic := range msg.Topics {
-			subscribeToMQTTTopic(msg.Host, msg.ThingSecret, topic+"/#")
-		}
-	}
 }
 
 // 广播消息给所有 WebSocket 客户端
@@ -223,6 +217,33 @@ func handleMessages() {
 				continue
 			}
 			unmarshaledData.Data = msgData
+
+			if unmarshaledData.MsgName == "DEVICE_LOGIN" {
+				if loginData, ok := unmarshaledData.Data.(*proto.DeviceLogin); ok {
+					// 调用函数 test
+					deviceIdentity := loginData.DeviceName
+					// 使用 if 语句转换登录状态
+					var loginStatus string
+					if loginData.Login {
+						loginStatus = "1"
+					} else {
+						loginStatus = "0"
+					}
+					updateClientConnectionStatus(deviceIdentity, loginStatus)
+				}
+			} else if unmarshaledData.MsgName == "DEVICE_INFO_UPDATE" {
+				if deviceData, ok := unmarshaledData.Data.(*proto.DeviceInfoUpdate); ok {
+					if deviceData.Info != nil {
+						updateClientInfo(deviceData.Info)
+					}
+				}
+			} else if unmarshaledData.MsgName == "DEVICE_INFO_GET_REPLY" {
+				if deviceData, ok := unmarshaledData.Data.(*proto.DeviceInfoGetReply); ok {
+					if deviceData.Info != nil {
+						updateClientInfo(deviceData.Info)
+					}
+				}
+			}
 		} else {
 			fmt.Println("未知的消息类型:", msgIdName)
 			continue

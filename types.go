@@ -63,3 +63,18 @@ type deflateResponseWriter struct {
 	io.Writer
 	http.ResponseWriter
 }
+
+// 定义 Client 结构体，确保字段类型与数据库匹配
+type Client struct {
+	ID        string                 `json:"id"`
+	Name      string                 `json:"name,omitempty"`
+	Identity  string                 `json:"identity,omitempty"`
+	Secret    string                 `json:"secret,omitempty"`
+	Tags      []string               `json:"tags,omitempty"`
+	DomainID  string                 `json:"domain,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	CreatedAt *time.Time             `json:"created_at,omitempty"`
+	UpdatedAt *time.Time             `json:"updated_at,omitempty"`
+	UpdatedBy *string                `json:"updated_by,omitempty"`
+	Status    int                    `json:"status,omitempty"` // 1 for enabled, 0 for disabled
+}

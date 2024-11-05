@@ -23,7 +23,6 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 	if exists && time.Since(timestamp) < 2*time.Second {
 		// fmt.Printf("Duplicate message received on topic %s: %s\n", msg.Topic(), msg.Payload())
 	} else {
-		// fmt.Printf("Received message on topic %s: %s\n", msg.Topic(), msg.Payload())
 		messageHistory.Lock()
 		messageHistory.m[msg.Topic()+string(msg.Payload())] = time.Now()
 		messageHistory.Unlock()
@@ -32,7 +31,7 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 }
 
 // 封装的 MQTT 连接和订阅函数
-func subscribeToMQTTTopic(broker, thingSecret, topic string) {
+func subscribeToMQTTTopic(broker, thingSecret, topic string) mqtt.Client {
 	clientID := thingSecret + "_" + generateClientID()
 	opts := mqtt.NewClientOptions().
 		AddBroker(fmt.Sprintf("tcp://%s:1883", broker)).
@@ -45,14 +44,24 @@ func subscribeToMQTTTopic(broker, thingSecret, topic string) {
 	client := mqtt.NewClient(opts)
 	if token := client.Connect(); token.Wait() && token.Error() != nil {
 		fmt.Printf("Failed to connect to MQTT broker: %v\n", token.Error())
-		return
+		return nil
 	}
 
 	if token := client.Subscribe(topic, 0, nil); token.Wait() && token.Error() != nil {
 		fmt.Printf("Failed to subscribe to MQTT topic: %v\n", token.Error())
-		return
+		return nil
 	} else {
 		fmt.Printf("Successfully subscribed to MQTT topic: %v\n", topic)
+	}
+
+	return client // 返回 MQTT 客户端
+}
+
+// 断开 MQTT 连接的函数
+func disconnectFromMQTT(client mqtt.Client) {
+	if client != nil {
+		client.Disconnect(250) // 250ms 超时
+		fmt.Println("Disconnected from MQTT broker.")
 	}
 }
 
@@ -114,11 +123,6 @@ func controlDeviceHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error decoding request body", http.StatusBadRequest)
 		return
 	}
-
-	// fmt.Printf("ChannelID: %v\n", params.ChannelID)
-	// fmt.Printf("ThingIdentity: %v\n", params.ThingIdentity)
-	// fmt.Printf("Host: %v\n", params.Host)
-	// fmt.Printf("ComID: %v\n", params.ComID)
 
 	// 构建 MQTT 主题
 	topic := fmt.Sprintf("channels/%s/messages/%s", params.ChannelID, params.ThingIdentity)

@@ -1,13 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 
+	mqtt "github.com/eclipse/paho.mqtt.golang"
 	"github.com/gorilla/websocket"
+	_ "github.com/lib/pq" // 确保这里有导入 PostgreSQL 驱动
 	"github.com/minio/minio-go/v7"
 )
 
@@ -38,9 +43,22 @@ var (
 		"NXT3602": {},
 		"NXT2102": {},
 	}
+
+	authDB   *sql.DB    // 数据库连接
+	comIDs   []string   // 存储 com ID
+	domainMu sync.Mutex // 用于保护对 domainIds 的并发访问
+
+	thingsDB    *sql.DB       // 数据库连接
+	mqttClients []mqtt.Client // 存储 MQTT 客户端
 )
 
 func main() {
+	initThingsTable()
+	initAuthTable()
+
+	// 启动轮询协程
+	go pollDomains()
+
 	// 设置 WebSocket 处理器
 	http.HandleFunc("/websocket", handleConnections)
 	// 启动一个 goroutine 来处理消息广播
@@ -74,4 +92,21 @@ func main() {
 	if err != nil {
 		log.Fatal("ListenAndServe: ", err)
 	}
+
+	// 捕获系统信号以便安全关闭
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+
+	// 等待接收到关闭信号
+	<-quit
+	log.Println("Shutting down server...")
+
+	// 安全关闭数据库连接
+	if err := authDB.Close(); err != nil {
+		log.Fatalf("Error closing the auth database: %v", err)
+	}
+	if err := thingsDB.Close(); err != nil {
+		log.Fatalf("Error closing the things database: %v", err)
+	}
+	log.Println("Database connection closed.")
 }

@@ -82,7 +82,6 @@ func savePbMsg(message []byte) {
 
 		// 过滤不在允许列表中的 ProductName
 		if !isProductAllowed(temp.ProductName) {
-			// fmt.Printf("产品名称 '%s' 不在允许的列表中，跳过处理。\n", temp.ProductName)
 			return
 		}
 
