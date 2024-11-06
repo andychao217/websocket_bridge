@@ -101,8 +101,8 @@ func initThingsTable() {
 // 从things数据库查询设备数据
 func getThingClientFromDB(db *sql.DB, identity string) (Client, error) {
 	query := `SELECT id, name, tags, COALESCE(domain_id, '') AS domain_id, identity, secret, metadata, created_at, updated_at, updated_by, status
-              FROM clients WHERE identity = ` + "'" + identity + "'"
-	row := db.QueryRow(query)
+              FROM clients WHERE identity = $1`
+	row := db.QueryRow(query, identity)
 
 	var client Client
 	var tagsJSON sql.NullString // 中间变量来接收 tags 列的值
