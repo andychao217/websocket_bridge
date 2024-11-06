@@ -18,23 +18,15 @@ COPY . .
 RUN echo http://mirrors.aliyun.com/alpine/v3.19/main/ > /etc/apk/repositories && \
     echo http://mirrors.aliyun.com/alpine/v3.19/community/ >> /etc/apk/repositories
 
-#Build
+# Build
 RUN apk update \
     && apk upgrade \
-    && apk add make\
+    && apk add --no-cache make upx \
     && make GOOS=$TARGETOS GOARCH=$TARGETARCH $SVC \
-    && mv build/$SVC /exe
+    && mv build/$SVC /exe \
+    && upx --best /exe  # 使用 UPX 压缩可执行文件
 
 FROM scratch
 COPY --from=builder /exe /
 
 ENTRYPOINT ["/exe"]
-
-
-
-
-
-
-
-
-
