@@ -41,6 +41,7 @@ var (
 	allowedProductNames = map[string]struct{}{
 		"NXT2204": {},
 		"NXT3602": {},
+		"NXT3603": {},
 		"NXT2102": {},
 		"XC9823A": {},
 	}
