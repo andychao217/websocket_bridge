@@ -28,6 +28,9 @@ var messagePubHandler mqtt.MessageHandler = func(client mqtt.Client, msg mqtt.Me
 		messageHistory.Unlock()
 		broadcast <- msg.Payload()
 	}
+
+	// 2. 无条件发送到数据库更新通道（所有消息都处理，不去重）
+	dbUpdateChan <- msg.Payload()
 }
 
 // 封装的 MQTT 连接和订阅函数

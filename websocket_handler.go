@@ -41,230 +41,281 @@ func handleWebsocketMessage(message []byte) {
 	}
 }
 
-// 广播消息给所有 WebSocket 客户端
-func handleMessages() {
-	type PayloadData struct {
-		Data    interface{} `json:"data"`
-		Source  string      `json:"source"`
-		MsgName string      `json:"msgName"`
-	}
+// 1. 定义消息元数据结构：整合解析器和消息对象创建函数
+type msgMeta struct {
+	parser     func([]byte, interface{}) error // Proto 解析函数
+	newMsgFunc func() interface{}              // 创建对应消息类型的对象（如 &proto.TaskStart{}）
+}
 
-	// 定义一个解析函数类型
-	type msgParser func([]byte, interface{}) error
+// 原有的结构体定义（保持不变）
+type PayloadData struct {
+	Data    interface{} `json:"data"`
+	Source  string      `json:"source"`
+	MsgName string      `json:"msgName"`
+}
 
-	// 映射消息ID到解析函数
-	msgParsers := map[string]msgParser{
-		"TASK_START":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
-		"TASK_START_REPLY":      func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStartReply)) },
-		"TASK_STOP":             func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
-		"TASK_STOP_REPLY":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStopReply)) },
-		"TASK_STATUS_GET":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
-		"TASK_STATUS_GET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGetReply)) },
-		"TASK_SYNC_STATUS_GET":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
-		"TASK_SYNC_STATUS_GET_REPLY": func(data []byte, v interface{}) error {
+// 2. 初始化消息元数据映射（替代原有的 msgParsers 和 switch）
+var msgMetaMap = map[string]msgMeta{
+	"TASK_START": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStart)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStart{} },
+	},
+	"TASK_START_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStartReply)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStartReply{} },
+	},
+	"TASK_STOP": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStop)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStop{} },
+	},
+	"TASK_STOP_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStopReply)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStopReply{} },
+	},
+	"TASK_STATUS_GET": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGet)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStatusGet{} },
+	},
+	"TASK_STATUS_GET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskStatusGetReply)) },
+		newMsgFunc: func() interface{} { return &proto.TaskStatusGetReply{} },
+	},
+	"TASK_SYNC_STATUS_GET": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGet)) },
+		newMsgFunc: func() interface{} { return &proto.TaskSyncStatusGet{} },
+	},
+	"TASK_SYNC_STATUS_GET_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.TaskSyncStatusGetReply))
 		},
-		"SOUND_CONSOLE_TASK_CONTROL_REPLY": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.TaskSyncStatusGetReply{} },
+	},
+	"SOUND_CONSOLE_TASK_CONTROL_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.SoundConsoleTaskControlReply))
 		},
-		"SOUND_CONSOLE_TASK_FEEDBACK": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.SoundConsoleTaskControlReply{} },
+	},
+	"SOUND_CONSOLE_TASK_FEEDBACK": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.SoundConsoleTaskFeedback))
 		},
-		"GET_LOG_REPLY":           func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.GetLogReply)) },
-		"DEVICE_LOGIN":            func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
-		"DEVICE_INFO_GET_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
-		"DEVICE_INFO_UPDATE":      func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
-		"DEVICE_RESTORE_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceRestoreReply)) },
-		"DEVICE_ALIASE_SET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceAliaseSetReply)) },
-		"LED_CFG_SET_REPLY":       func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.LedCfgSetReply)) },
-		"STEREO_CFG_SET_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.StereoCfgSetReply)) },
-		"OUT_CHANNEL_EDIT_REPLY":  func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.OutChannelEditReply)) },
-		"IN_CHANNEL_EDIT_REPLY":   func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.InChannelEditReply)) },
-		"BLUETOOTH_CFG_SET_REPLY": func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.BluetoothCfgSetReply)) },
-		"SPEECH_CFG_SET_REPLY":    func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.SpeechCfgSetReply)) },
-		"BLUETOOTH_WHITELIST_ADD_REPLY": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.SoundConsoleTaskFeedback{} },
+	},
+	"GET_LOG_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.GetLogReply)) },
+		newMsgFunc: func() interface{} { return &proto.GetLogReply{} },
+	},
+	"DEVICE_LOGIN": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceLogin)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceLogin{} },
+	},
+	"DEVICE_INFO_GET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoGetReply)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceInfoGetReply{} },
+	},
+	"DEVICE_INFO_UPDATE": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceInfoUpdate)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceInfoUpdate{} },
+	},
+	"DEVICE_RESTORE_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceRestoreReply)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceRestoreReply{} },
+	},
+	"DEVICE_ALIASE_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceAliaseSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceAliaseSetReply{} },
+	},
+	"LED_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.LedCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.LedCfgSetReply{} },
+	},
+	"STEREO_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.StereoCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.StereoCfgSetReply{} },
+	},
+	"OUT_CHANNEL_EDIT_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.OutChannelEditReply)) },
+		newMsgFunc: func() interface{} { return &proto.OutChannelEditReply{} },
+	},
+	"IN_CHANNEL_EDIT_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.InChannelEditReply)) },
+		newMsgFunc: func() interface{} { return &proto.InChannelEditReply{} },
+	},
+	"BLUETOOTH_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.BluetoothCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.BluetoothCfgSetReply{} },
+	},
+	"SPEECH_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.SpeechCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.SpeechCfgSetReply{} },
+	},
+	"BLUETOOTH_WHITELIST_ADD_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.BluetoothWhitelistAddReply))
 		},
-		"BLUETOOTH_WHITELIST_DELETE_REPLY": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.BluetoothWhitelistAddReply{} },
+	},
+	"BLUETOOTH_WHITELIST_DELETE_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.BluetoothWhitelistDeleteReply))
 		},
-		"AMP_CHECK_CFG_SET_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.AmpCheckCfgSetReply))
-		},
-		"AUDIO_MATRIX_CFG_SET_REPLY": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.BluetoothWhitelistDeleteReply{} },
+	},
+	"AMP_CHECK_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.AmpCheckCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.AmpCheckCfgSetReply{} },
+	},
+	"AUDIO_MATRIX_CFG_SET_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.AudioMatrixCfgSetReply))
 		},
-		"RADIO_FREQ_GET_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.RadioFreqGetReply))
-		},
-		"RADIO_FREQ_ADD_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.RadioFreqAddReply))
-		},
-		"RADIO_FREQ_SET_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.RadioFreqSetReply))
-		},
-		"RADIO_FREQ_DELETE_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.RadioFreqDeleteReply))
-		},
-		"U_CHANNEL_SET_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.UChannelSetReply))
-		},
-		"EQ_CFG_SET_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.EqCfgSetReply))
-		},
-		"SPEAKER_VOLUME_SET_REPLY": func(data []byte, v interface{}) error {
+		newMsgFunc: func() interface{} { return &proto.AudioMatrixCfgSetReply{} },
+	},
+	"RADIO_FREQ_GET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.RadioFreqGetReply)) },
+		newMsgFunc: func() interface{} { return &proto.RadioFreqGetReply{} },
+	},
+	"RADIO_FREQ_ADD_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.RadioFreqAddReply)) },
+		newMsgFunc: func() interface{} { return &proto.RadioFreqAddReply{} },
+	},
+	"RADIO_FREQ_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.RadioFreqSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.RadioFreqSetReply{} },
+	},
+	"RADIO_FREQ_DELETE_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.RadioFreqDeleteReply)) },
+		newMsgFunc: func() interface{} { return &proto.RadioFreqDeleteReply{} },
+	},
+	"U_CHANNEL_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.UChannelSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.UChannelSetReply{} },
+	},
+	"EQ_CFG_SET_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.EqCfgSetReply)) },
+		newMsgFunc: func() interface{} { return &proto.EqCfgSetReply{} },
+	},
+	"SPEAKER_VOLUME_SET_REPLY": {
+		parser: func(data []byte, v interface{}) error {
 			return gProto.Unmarshal(data, v.(*proto.SpeakerVolumeSetReply))
 		},
-		"DEVICE_UPGRADE_REPLY": func(data []byte, v interface{}) error {
-			return gProto.Unmarshal(data, v.(*proto.DeviceUpgradeReply))
-		},
+		newMsgFunc: func() interface{} { return &proto.SpeakerVolumeSetReply{} },
+	},
+	"DEVICE_UPGRADE_REPLY": {
+		parser:     func(data []byte, v interface{}) error { return gProto.Unmarshal(data, v.(*proto.DeviceUpgradeReply)) },
+		newMsgFunc: func() interface{} { return &proto.DeviceUpgradeReply{} },
+	},
+}
+
+// 2. 提取公共消息解析函数：解析消息并返回解析后的对象
+func parseMessage(msgIdName string, data []byte) (interface{}, error) {
+	meta, exists := msgMetaMap[msgIdName]
+	if !exists {
+		log.Printf("未知的消息类型: %s", msgIdName)
+		return nil, fmt.Errorf("未知的消息类型: %s", msgIdName)
 	}
 
-	for payload := range broadcast {
-		var receivedMsg proto.PbMsg
-		err := gProto.Unmarshal(payload, &receivedMsg)
-		if err != nil {
-			fmt.Println("解析错误:", err)
-			continue
-		}
+	msgData := meta.newMsgFunc()
+	if err := meta.parser(data, msgData); err != nil {
+		log.Printf("解析消息 %s 失败: %v", msgIdName, err)
+		return nil, fmt.Errorf("解析消息 %s 失败: %v", msgIdName, err)
+	}
+	return msgData, nil
+}
 
-		msgIdName := proto.MsgId_name[int32(receivedMsg.Id)]
-		data := receivedMsg.Data
-
-		unmarshaledData := PayloadData{MsgName: msgIdName, Source: receivedMsg.Source}
-
-		// 使用映射解析消息
-		if parser, exists := msgParsers[msgIdName]; exists {
-			// 为每种消息类型创建具体的变量
-			var msgData interface{}
-			switch msgIdName {
-			case "TASK_START":
-				msgData = &proto.TaskStart{}
-			case "TASK_START_REPLY":
-				msgData = &proto.TaskStartReply{}
-			case "TASK_STOP":
-				msgData = &proto.TaskStop{}
-			case "TASK_STOP_REPLY":
-				msgData = &proto.TaskStopReply{}
-			case "TASK_STATUS_GET":
-				msgData = &proto.TaskStatusGet{}
-			case "TASK_STATUS_GET_REPLY":
-				msgData = &proto.TaskStatusGetReply{}
-			case "TASK_SYNC_STATUS_GET":
-				msgData = &proto.TaskSyncStatusGet{}
-			case "TASK_SYNC_STATUS_GET_REPLY":
-				msgData = &proto.TaskSyncStatusGetReply{}
-			case "SOUND_CONSOLE_TASK_CONTROL_REPLY":
-				msgData = &proto.SoundConsoleTaskControlReply{}
-			case "SOUND_CONSOLE_TASK_FEEDBACK":
-				msgData = &proto.SoundConsoleTaskFeedback{}
-			case "GET_LOG_REPLY":
-				msgData = &proto.GetLogReply{}
-			case "DEVICE_LOGIN":
-				msgData = &proto.DeviceLogin{}
-			case "DEVICE_INFO_GET_REPLY":
-				msgData = &proto.DeviceInfoGetReply{}
-			case "DEVICE_INFO_UPDATE":
-				msgData = &proto.DeviceInfoUpdate{}
-			case "DEVICE_RESTORE_REPLY":
-				msgData = &proto.DeviceRestoreReply{}
-			case "DEVICE_ALIASE_SET_REPLY":
-				msgData = &proto.DeviceAliaseSetReply{}
-			case "OUT_CHANNEL_EDIT_REPLY":
-				msgData = &proto.OutChannelEditReply{}
-			case "IN_CHANNEL_EDIT_REPLY":
-				msgData = &proto.InChannelEditReply{}
-			case "LED_CFG_SET_REPLY":
-				msgData = &proto.LedCfgSetReply{}
-			case "AMP_CHECK_CFG_SET_REPLY":
-				msgData = &proto.AmpCheckCfgSetReply{}
-			case "AUDIO_MATRIX_CFG_SET_REPLY":
-				msgData = &proto.AudioMatrixCfgSetReply{}
-			case "STEREO_CFG_SET_REPLY":
-				msgData = &proto.StereoCfgSetReply{}
-			case "BLUETOOTH_CFG_SET_REPLY":
-				msgData = &proto.BluetoothCfgSetReply{}
-			case "SPEECH_CFG_SET_REPLY":
-				msgData = &proto.SpeechCfgSetReply{}
-			case "BLUETOOTH_WHITELIST_ADD_REPLY":
-				msgData = &proto.BluetoothWhitelistAddReply{}
-			case "BLUETOOTH_WHITELIST_DELETE_REPLY":
-				msgData = &proto.BluetoothWhitelistDeleteReply{}
-			case "RADIO_FREQ_GET_REPLY":
-				msgData = &proto.RadioFreqGetReply{}
-			case "RADIO_FREQ_ADD_REPLY":
-				msgData = &proto.RadioFreqAddReply{}
-			case "RADIO_FREQ_SET_REPLY":
-				msgData = &proto.RadioFreqSetReply{}
-			case "RADIO_FREQ_DELETE_REPLY":
-				msgData = &proto.RadioFreqDeleteReply{}
-			case "U_CHANNEL_SET_REPLY":
-				msgData = &proto.UChannelSetReply{}
-			case "EQ_CFG_SET_REPLY":
-				msgData = &proto.EqCfgSetReply{}
-			case "SPEAKER_VOLUME_SET_REPLY":
-				msgData = &proto.SpeakerVolumeSetReply{}
-			case "DEVICE_UPGRADE_REPLY":
-				msgData = &proto.DeviceUpgradeReply{}
-			default:
-				fmt.Println("未知的消息类型:", msgIdName)
-				continue
+// 3. 提取数据库更新逻辑为子函数
+func handleDBUpdate(msgIdName string, msgData interface{}) {
+	switch msgIdName {
+	case "DEVICE_LOGIN":
+		if loginData, ok := msgData.(*proto.DeviceLogin); ok {
+			deviceIdentity := loginData.DeviceName
+			loginStatus := "0"
+			if loginData.Login {
+				loginStatus = "1"
 			}
-
-			err := parser(data, msgData)
-			if err != nil {
-				fmt.Println("解析错误:", err)
-				continue
-			}
-			unmarshaledData.Data = msgData
-
-			if unmarshaledData.MsgName == "DEVICE_LOGIN" {
-				if loginData, ok := unmarshaledData.Data.(*proto.DeviceLogin); ok {
-					// 调用函数 test
-					deviceIdentity := loginData.DeviceName
-					// 使用 if 语句转换登录状态
-					var loginStatus string
-					if loginData.Login {
-						loginStatus = "1"
-					} else {
-						loginStatus = "0"
-					}
-					updateClientConnectionStatus(deviceIdentity, loginStatus)
-				}
-			} else if unmarshaledData.MsgName == "DEVICE_INFO_UPDATE" {
-				if deviceData, ok := unmarshaledData.Data.(*proto.DeviceInfoUpdate); ok {
-					if deviceData.Info != nil {
-						updateClientInfo(deviceData.Info)
-					}
-				}
-			} else if unmarshaledData.MsgName == "DEVICE_INFO_GET_REPLY" {
-				if deviceData, ok := unmarshaledData.Data.(*proto.DeviceInfoGetReply); ok {
-					if deviceData.Info != nil {
-						updateClientInfo(deviceData.Info)
-					}
-				}
-			}
-		} else {
-			fmt.Println("未知的消息类型:", msgIdName)
-			continue
+			updateClientConnectionStatus(deviceIdentity, loginStatus)
 		}
-
-		jsonBytes, err := json.Marshal(unmarshaledData)
-		if err != nil {
-			fmt.Println("转换为 JSON 时发生错误:", err)
-			continue
+	case "DEVICE_INFO_UPDATE":
+		if deviceData, ok := msgData.(*proto.DeviceInfoUpdate); ok && deviceData.Info != nil {
+			updateClientInfo(deviceData.Info)
 		}
+	case "DEVICE_INFO_GET_REPLY":
+		if deviceData, ok := msgData.(*proto.DeviceInfoGetReply); ok && deviceData.Info != nil {
+			updateClientInfo(deviceData.Info)
+		}
+		// ... 其他需要数据库更新的消息类型（如果有）
+	}
+}
 
-		jsonString := string(jsonBytes)
+// 4. 提取 WebSocket 广播逻辑为子函数
+func handleBroadcast(unmarshaledData PayloadData) {
+	jsonBytes, err := json.Marshal(unmarshaledData)
+	if err != nil {
+		log.Printf("转换为 JSON 失败: %v", err)
+		return
+	}
 
+	// 有客户端时才广播
+	if len(clients) > 0 {
 		for client := range clients {
-			// fmt.Println("websocket.TextMessage: ", jsonString)
-			err := client.WriteMessage(websocket.TextMessage, []byte(jsonString))
-			if err != nil {
-				log.Printf("error: %v", err)
+			if err := client.WriteMessage(websocket.TextMessage, jsonBytes); err != nil {
+				log.Printf("WebSocket 发送失败: %v", err)
 				client.Close()
 				delete(clients, client)
 			}
+		}
+	}
+}
+
+// 5. 优化后的主函数
+func handleMessages() {
+	for {
+		select {
+		case payload := <-dbUpdateChan:
+			// 解析 PbMsg 基础结构
+			var receivedMsg proto.PbMsg
+			if err := gProto.Unmarshal(payload, &receivedMsg); err != nil {
+				log.Printf("解析 PbMsg 失败: %v", err)
+				continue
+			}
+			msgIdName := proto.MsgId_name[int32(receivedMsg.Id)]
+			data := receivedMsg.Data
+
+			// 调用公共解析函数
+			msgData, err := parseMessage(msgIdName, data)
+			if err != nil {
+				continue // 解析失败直接跳过
+			}
+
+			// 处理数据库更新
+			handleDBUpdate(msgIdName, msgData)
+
+		case payload := <-broadcast:
+			// 解析 PbMsg 基础结构
+			var receivedMsg proto.PbMsg
+			if err := gProto.Unmarshal(payload, &receivedMsg); err != nil {
+				log.Printf("解析 PbMsg 失败: %v", err)
+				continue
+			}
+			msgIdName := proto.MsgId_name[int32(receivedMsg.Id)]
+			data := receivedMsg.Data
+
+			// 调用公共解析函数
+			msgData, err := parseMessage(msgIdName, data)
+			if err != nil {
+				continue
+			}
+
+			// 准备广播数据
+			unmarshaledData := PayloadData{
+				MsgName: msgIdName,
+				Source:  receivedMsg.Source,
+				Data:    msgData,
+			}
+
+			// 处理 WebSocket 广播
+			handleBroadcast(unmarshaledData)
 		}
 	}
 }

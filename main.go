@@ -25,7 +25,9 @@ var (
 	// 全局变量来存储所有连接的 WebSocket 客户端
 	clients   = make(map[*websocket.Conn]bool)
 	broadcast = make(chan []byte)
-	upgrader  = websocket.Upgrader{
+	// 新增专门用于数据库更新的通道，不经过去重逻辑
+	dbUpdateChan = make(chan []byte)
+	upgrader     = websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool {
 			return true
 		},
