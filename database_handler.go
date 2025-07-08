@@ -135,13 +135,7 @@ func getThingClientFromDB(db *sql.DB, identity string) (Client, error) {
 	}
 
 	// 处理 tags 数据
-	if tagsJSON.Valid {
-		if err := json.Unmarshal([]byte(tagsJSON.String), &client.Tags); err != nil {
-			return Client{}, err // 处理 JSON 解析错误
-		}
-	} else {
-		client.Tags = []string{} // 将其初始化为空切片
-	}
+	client.Tags = []string{} // 将其初始化为空切片
 
 	return client, nil
 }
